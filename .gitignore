@@ -1,0 +1,59 @@
+# --- Python 字节码 ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- 虚拟环境 (最重要，不要上传到 GitHub) ---
+.venv/
+venv/
+ENV/
+env/
+bin/
+lib/
+include/
+
+# --- 构建与打包产生的临时文件 ---
+# 这些是你运行 release.sh 或 python -m build 时生成的
+dist/
+build/
+*.egg-info/
+*.egg
+nosetests.xml
+pip-wheel-metadata/
+
+# --- 单元测试 / 覆盖率报告 ---
+htmlcov/
+.tox/
+.nosexy
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# --- 操作系统相关 (尤其是你的 Mac) ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# --- 编辑器与 IDE ---
+# VS Code
+.vscode/
+# PyCharm
+.idea/
+
+# --- 环境变量文件 ---
+.env
+.flaskenv
+token
+release.sh
+fatigue.db
+data
+
+example
+.vscode

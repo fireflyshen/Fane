@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Fane"
+version = "1.2.7"
+description = "bill-generater"
+readme = "README.md"
+license = {text = "MIT"}
+dependencies = [
+    "requests",
+    "typer",
+    "pandas",
+    "openpyxl",
+    "beautifulsoup4",
+    "pydantic",
+    "jinja2",
+    "pyyaml"
+]
+
+[project.scripts]
+fa = "package.cmd:app"
+
+[tool.setuptools]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ir*", "achive*", "package*", "provider*", "compiler*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"*" = ["*.j2", "*.json", "*.yaml"]  # 这里的 * 表示对所有包生效
