@@ -1,7 +1,9 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
+
 from provider.ali.rules import ALi
 from provider.wechat.rules import WeChat
-from typing import Optional
 
 
 class Config(BaseModel):

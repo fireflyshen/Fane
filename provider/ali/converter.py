@@ -1,5 +1,5 @@
-from provider.ali.ali_types import AliOrder, DealType
 from ir.ir import IR, Order, Type
+from provider.ali.ali_types import AliOrder, DealType
 
 
 def get_private_meta_data(ali_order: AliOrder) -> dict:

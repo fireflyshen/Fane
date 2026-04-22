@@ -1,9 +1,10 @@
-import typer
-import package.config.init as cfg
-from typing_extensions import Annotated
-from pathlib import Path
 from importlib.metadata import version, PackageNotFoundError
+from pathlib import Path
 
+import typer
+from typing_extensions import Annotated
+
+import package.config.init as cfg
 
 cfg_file: str = None
 app = typer.Typer(help="fflow")

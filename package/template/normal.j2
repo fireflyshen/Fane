@@ -1,8 +1,8 @@
 {{ pay_time.strftime("%Y-%m-%d") }} * "{{ peer | escape }}"{% if item %} "{{ item | escape }}"{% endif %}{% for tag in tags %} #{{ tag }}{% endfor %}{# {% if note %} {{ note }} {% endif %} #}
-{%- for key, value in metadata.items() %} 
-    {% if value -%} 
-        {{ key }}: "{{ value }}" 
-    {%- endif %} 
+{%- for key, value in metadata.items() %}
+    {% if value -%}
+        {{ key }}: "{{ value }}"
+    {%- endif %}
 {%- endfor %}
     {{ "%-47s" | format(plus_account) }} {{ plus_str if plus_str else ("%10.2f %s" | format(money, currency)) }}
     {{ "%-47s" | format(minus_account) }} {{ minus_str if minus_str else ("%10.2f %s" | format(-money, currency)) }}

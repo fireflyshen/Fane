@@ -1,12 +1,12 @@
-import logging
-
-from package.config import Config
-from ir.ir import IR, Order
-from package.strategy.template.strategy import TemplateStrategy
-from package.parser.paser import Paser
-import re
 import json
+import logging
+import re
 from collections import defaultdict
+
+from ir.ir import IR, Order
+from package.config import Config
+from package.parser.paser import Paser
+from package.strategy.template.strategy import TemplateStrategy
 
 
 class Compiler:

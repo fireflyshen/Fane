@@ -7,7 +7,7 @@ name = "Fane"
 version = "1.2.7"
 description = "bill-generater"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 dependencies = [
     "requests",
     "typer",

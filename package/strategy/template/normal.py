@@ -1,9 +1,9 @@
-from package.template.template import get_template
-
 from functools import lru_cache
+
+from ir.ir import Order, Account
 from package.strategy.template.strategy import TemplateStrategy
 from package.template.template import NormalOrder
-from ir.ir import Order, Account
+from package.template.template import get_template
 
 
 class NormalStrategy(TemplateStrategy):

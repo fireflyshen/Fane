@@ -1,5 +1,5 @@
-from provider.wechat.wecaht_types import WechatOrder, DealType
 from ir.ir import IR, Order, Type
+from provider.wechat.wecaht_types import WechatOrder, DealType
 
 
 def get_private_meta_data(wechat_order: WechatOrder) -> dict:

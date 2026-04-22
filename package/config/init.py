@@ -1,6 +1,7 @@
-import yaml
 import logging
 from pathlib import Path
+
+import yaml
 
 _config = None
 

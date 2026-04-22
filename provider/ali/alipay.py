@@ -1,7 +1,9 @@
 import logging
-import pandas as pd
-from ir.ir import IR
 from datetime import datetime
+
+import pandas as pd
+
+from ir.ir import IR
 from provider.ali.ali_types import DealType, DealStatus, AliOrder
 from provider.ali.converter import convert_to_ir
 

@@ -1,12 +1,14 @@
-import typer
-from .root import app
-from package.config import get_config, Config
-from typing_extensions import Annotated
-from provider.provider import get_provider
-from package.compiler.compiler import Compiler
-from package.strategy.template.normal import NormalStrategy
-from package.parser.paser import get_analyser
 import traceback
+
+import typer
+from typing_extensions import Annotated
+
+from package.compiler.compiler import Compiler
+from package.config import get_config, Config
+from package.parser.paser import get_analyser
+from package.strategy.template.normal import NormalStrategy
+from provider.provider import get_provider
+from .root import app
 
 
 @app.command()
