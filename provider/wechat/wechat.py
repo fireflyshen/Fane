@@ -27,6 +27,7 @@ class Wechat:
             df = pd.read_excel(
                 filename,
                 skiprows=start_index,
+                dtype=str
             )
             for row in df.to_dict("records"):
                 self.translate_order(row)

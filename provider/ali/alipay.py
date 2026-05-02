@@ -15,6 +15,7 @@ class AliPay:
         self.orders = []
 
     def find_file_encodeing_and_index(self, filename: str) -> tuple:
+        global start_index
         self.orders = []
         encodings = ["utf-8", "gbk", "gb18030", "utf-8-sig"]
         lines = None
@@ -65,6 +66,10 @@ class AliPay:
             pay_time = datetime.strptime(pay_time_raw.strip(), "%Y-%m-%d %H:%M:%S")
         else:
             pay_time = pay_time_raw
+
+        # 如果首付款方式为空，说明这可能是已经被关闭的交易，不计入账本
+        if pd.isna(row["收/付款方式"]):
+            return
 
         ali_order = AliOrder(
             category=row["交易分类"],
