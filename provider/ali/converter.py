@@ -26,7 +26,6 @@ def get_private_meta_data(ali_order: AliOrder) -> dict:
         d["method"] = ali_order.method
     if ali_order.status:
         d["status"] = ali_order.status.value
-
     return d
 
 

@@ -24,26 +24,25 @@ def version_callback(value: bool):
 
 @app.callback()
 def initialize(
-    ctx: typer.Context,
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            "-c",
-            help="config file (default is $HOME/.double-entry-generator.yaml)",
-        ),
-    ] = str(config_file),
-    toogle: Annotated[
-        bool, typer.Option("--toggle", "-t", help="Help message for toggle")
-    ] = False,
-    version: Annotated[
-        bool,
-        typer.Option(
-            "--version", "-v", is_eager=True, callback=version_callback, help="version"
-        ),
-    ] = False,
+        ctx: typer.Context,
+        config: Annotated[
+            Path,
+            typer.Option(
+                "--config",
+                "-c",
+                help="config file (default is $HOME/.double-entry-generator.yaml)",
+            ),
+        ] = str(config_file),
+        toogle: Annotated[
+            bool, typer.Option("--toggle", "-t", help="Help message for toggle")
+        ] = False,
+        version: Annotated[
+            bool,
+            typer.Option(
+                "--version", "-v", is_eager=True, callback=version_callback, help="version"
+            ),
+        ] = False,
 ):
-
     if ctx.invoked_subcommand == "version":
         return
     global cfg_file
