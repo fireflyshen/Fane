@@ -32,3 +32,4 @@ def trans(
     except Exception as e:
         typer.echo(f"编译出错: {e}")
         traceback.print_exc()
+    
