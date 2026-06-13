@@ -5,6 +5,8 @@ from package.config import Config
 from package.parser.ali.alipay import AlipayAnalyser
 from package.parser.wechat.wechat import WechatAnalyser
 
+analyser_dict = {"alipay": AlipayAnalyser, "wechat": WechatAnalyser}
+
 
 class Paser(Protocol):
     def get_account_and_tags(self, o: Order, cfg: Config) -> tuple:
@@ -12,8 +14,7 @@ class Paser(Protocol):
 
 
 def get_analyser(provider_name: str):
-    if provider_name == "alipay":
-        return AlipayAnalyser()
-    if provider_name == "wechat":
-        return WechatAnalyser()
-    return None
+    analyser_factory = analyser_dict.get(provider_name)
+    if analyser_factory is None:
+        return None
+    return analyser_factory()

@@ -5,6 +5,7 @@ import typer
 from typing_extensions import Annotated
 
 import package.config.init as cfg
+from package.errors import ConfigError
 
 cfg_file: str = None
 app = typer.Typer(help="fflow")
@@ -47,4 +48,8 @@ def initialize(
         return
     global cfg_file
     cfg_file = str(config)
-    cfg.init_config(cfg_file)
+    try:
+        cfg.init_config(cfg_file)
+    except ConfigError as ce:
+        typer.echo(f"配置出错: {ce}", err=True)
+        raise typer.Exit(code=1)

@@ -1,6 +1,14 @@
 from ir.ir import IR, Order, Type
 from provider.ali.ali_types import AliOrder, DealType
 
+TYPE_MAP: dict[DealType, Type] = {
+    DealType.SEND: Type.SEND,
+    DealType.RECV: Type.RECV,
+    DealType.NIL: Type.UNKNOW,
+    DealType.OTHERS: Type.UNKNOW,
+    DealType.EMPTY: Type.UNKNOW,
+}
+
 
 def get_private_meta_data(ali_order: AliOrder) -> dict:
     source = "ALiPay"
@@ -52,21 +60,8 @@ def config_meta_data(ali_order: AliOrder) -> Order:
 
 
 def convert_type(type: DealType):
-    type_dict: dict[DealType, Type] = {
-        DealType.SEND: Type.SEND,
-        DealType.RECV: Type.RECV,
-        DealType.NIL: Type.UNKNOW,
-        DealType.OTHERS: Type.UNKNOW,
-        DealType.EMPTY: Type.UNKNOW,
-    }
-
-    return type_dict.get(type, Type.UNKNOW)
+    return TYPE_MAP.get(type, Type.UNKNOW)
 
 
 def convert_to_ir(ali_orders: list[AliOrder]):
-    ir = IR()
-    for ali_order in ali_orders:
-        ir_order = config_meta_data(ali_order)
-        ir.orders.append(ir_order)
-
-    return ir
+    return IR(orders=[config_meta_data(ali_order) for ali_order in ali_orders])

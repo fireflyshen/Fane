@@ -1,67 +1,69 @@
-import os
-import sys
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from ir.ir import IR
-from provider.wechat.wecaht_types import WechatOrder, DealType, TxType
+from package.errors import ProviderError
 from provider.wechat.converter import convert_to_ir
+from provider.base import TabularProvider
+from provider.wechat.wecaht_types import DealType, TxType, WechatOrder
+
+REQUIRED_COLUMNS = (
+    "交易时间",
+    "交易单号",
+    "商户单号",
+    "收/支",
+    "交易对方",
+    "商品",
+    "金额(元)",
+    "当前状态",
+    "支付方式",
+    "交易类型",
+)
 
 
-class Wechat:
-    orders: list[WechatOrder]
-
-    def __init__(self):
-        self.orders = []
-
-    def translate(self, filename: str) -> IR:
-        self.orders = []
-        start_index = 0
-        df_preview = pd.read_excel(filename, header=None, nrows=20)
-        for i, row in df_preview.iterrows():
-            if any("交易时间" in str(cell) for cell in row.values):
-                start_index = i
-                break
+class Wechat(TabularProvider[WechatOrder]):
+    def iter_rows(self, filename: str) -> Iterable[Mapping[str, Any]]:
+        start_index = self.find_header_index(filename)
         try:
-            df = pd.read_excel(
-                filename,
-                skiprows=start_index,
-                dtype=str
-            )
-            for row in df.to_dict("records"):
-                self.translate_order(row)
-
-            ir = convert_to_ir(self.orders)
-
-            return ir
+            df = pd.read_excel(filename, skiprows=start_index, dtype=str)
+            self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
+            for _, row in df.iterrows():
+                yield row
+        except ProviderError:
+            raise
         except Exception as e:
             print(e)
             raise
 
-    def translate_order(self, row: dict):
-        from datetime import datetime
+    def find_header_index(self, filename: str) -> int:
+        df_preview = pd.read_excel(filename, header=None, nrows=20)
+        for i, row in df_preview.iterrows():
+            if any("交易时间" in str(cell) for cell in row.values):
+                return i
+        return 0
 
-        pay_time_raw = row["交易时间"]
-        if isinstance(pay_time_raw, str):
-            pay_time = datetime.strptime(pay_time_raw.strip(), "%Y-%m-%d %H:%M:%S")
-        else:
-            pay_time = pay_time_raw  # pandas 可能已解析为 datetime
+    def translate_order(self, row: Mapping[str, Any]) -> None:
+        pay_time = self.parse_datetime(row["交易时间"], "交易时间")
 
         wechat_order = WechatOrder(
             order_id=row["交易单号"],
             mechant_order_id=row["商户单号"],
             pay_time=pay_time,
-            type=DealType(row["收/支"]),
+            type=self.parse_enum(DealType, row["收/支"], "收/支"),
             type_original=row["收/支"],
             peer=row["交易对方"],
             item=row["商品"],
             money=str(row["金额(元)"]).replace("¥", ""),
             status=row["当前状态"],
             method=row["支付方式"],
-            tx_type=TxType(row["交易类型"]),
+            tx_type=self.parse_enum(TxType, row["交易类型"], "交易类型"),
             tx_type_original=row["交易类型"],
             commision="",
         )
 
         self.orders.append(wechat_order)
+
+    def convert_orders(self, orders: list[WechatOrder]) -> IR:
+        return convert_to_ir(orders)

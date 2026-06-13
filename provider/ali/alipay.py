@@ -1,24 +1,35 @@
 import logging
-from datetime import datetime
+from collections.abc import Iterable, Mapping
+from typing import Any, Optional
 
 import pandas as pd
 
 from ir.ir import IR
-from provider.ali.ali_types import DealType, DealStatus, AliOrder
+from package.errors import ProviderError
+from provider.ali.ali_types import AliOrder, DealStatus, DealType
 from provider.ali.converter import convert_to_ir
+from provider.base import TabularProvider
+
+REQUIRED_COLUMNS = (
+    "交易时间",
+    "交易分类",
+    "交易订单号",
+    "商家订单号",
+    "交易对方",
+    "商品说明",
+    "对方账号",
+    "金额",
+    "收/支",
+    "交易状态",
+    "收/付款方式",
+    "备注",
+)
 
 
-class AliPay:
-    orders: list[AliOrder]
-
-    def __init__(self):
-        self.orders = []
-
-    def find_file_encodeing_and_index(self, filename: str) -> tuple:
-        global start_index
-        self.orders = []
+class AliPay(TabularProvider[AliOrder]):
+    def find_file_encodeing_and_index(self, filename: str) -> tuple[str, int]:
         encodings = ["utf-8", "gbk", "gb18030", "utf-8-sig"]
-        lines = None
+        lines: Optional[list[str]] = None
         used_encoding = "utf-8"
 
         for enc in encodings:
@@ -34,38 +45,33 @@ class AliPay:
             raise ValueError(f"无法使用 {encodings} 解码文件：{filename}")
         for i, line in enumerate(lines):
             if "交易时间" in line:
-                start_index = i
-                break
-        return used_encoding, start_index
+                return used_encoding, i
+        raise ValueError(f"无法在文件中找到交易时间表头：{filename}")
 
-    def parse_ir(self, filename: str, start_index, encoding):
+    def iter_rows(self, filename: str) -> Iterable[Mapping[str, Any]]:
+        encoding, index = self.find_file_encodeing_and_index(filename)
         try:
             df = pd.read_csv(
                 filename,
-                skiprows=start_index,
+                skiprows=index,
                 header=0,
                 encoding=encoding,
                 dtype={"交易订单号": str, "商家订单号": str},
             )
-
-            for row in df.to_dict("records"):
-                self.translate_order(row)
-
-            ir = convert_to_ir(self.orders)
-            return ir
+            self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
+            for _, row in df.iterrows():
+                yield row
         except FileNotFoundError as fe:
             logging.error("文件未找到")
+            raise
+        except ProviderError:
             raise
         except Exception as e:
             logging.exception("发生未知错误")
             raise
 
-    def translate_order(self, row: dict):
-        pay_time_raw = row["交易时间"]
-        if isinstance(pay_time_raw, str):
-            pay_time = datetime.strptime(pay_time_raw.strip(), "%Y-%m-%d %H:%M:%S")
-        else:
-            pay_time = pay_time_raw
+    def translate_order(self, row: Mapping[str, Any]) -> None:
+        pay_time = self.parse_datetime(row["交易时间"], "交易时间")
 
         # 如果首付款方式为空，说明这可能是已经被关闭的交易，不计入账本
         if pd.isna(row["收/付款方式"]):
@@ -80,8 +86,8 @@ class AliPay:
             peer_account=row["对方账号"],
             money=row["金额"],
             pay_time=pay_time,
-            type=DealType(row["收/支"]),
-            status=DealStatus(row["交易状态"]),
+            type=self.parse_enum(DealType, row["收/支"], "收/支"),
+            status=self.parse_enum(DealStatus, row["交易状态"], "交易状态"),
             method=row["收/付款方式"],
             target_account="",
             method_account="",
@@ -91,6 +97,5 @@ class AliPay:
 
         self.orders.append(ali_order)
 
-    def translate(self, filename: str) -> IR:
-        encoding, index = self.find_file_encodeing_and_index(filename)
-        return self.parse_ir(filename=filename, start_index=index, encoding=encoding)
+    def convert_orders(self, orders: list[AliOrder]) -> IR:
+        return convert_to_ir(orders)

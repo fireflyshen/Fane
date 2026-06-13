@@ -13,9 +13,10 @@ def post_process(ir: IR) -> IR:
     orders = []
 
     for o in ir.orders:
-        status = o.meta_data.get("status")
+        meta = o.meta_data or {}
+        status = meta.get("status")
 
-        if status == DealStatus.CLOSE.value and o.meta_data.get("type") == "不计收支":
+        if status == DealStatus.CLOSE.value and meta.get("type") == "不计收支":
             continue
 
         if status == DealStatus.SHOP_PENDING.value:
@@ -49,7 +50,11 @@ def _get_accounts() -> dict:
 def pre_google():
     accounts = _get_accounts()
     google_obj = accounts.get("google_one")
-    if not google_obj or (int(date.today().day) < int(google_obj.get("payday"))) or int(date.today().day) > 21:
+    if (
+        not google_obj
+        or (int(date.today().day) < int(google_obj.get("payday")))
+        or int(date.today().day) > 21
+    ):
         return None
 
     google_order = Order()

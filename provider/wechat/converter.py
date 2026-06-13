@@ -1,6 +1,12 @@
 from ir.ir import IR, Order, Type
 from provider.wechat.wecaht_types import WechatOrder, DealType
 
+TYPE_MAP: dict[DealType, Type] = {
+    DealType.SEND: Type.SEND,
+    DealType.RECV: Type.RECV,
+    DealType.NIL: Type.UNKNOW,
+}
+
 
 def get_private_meta_data(wechat_order: WechatOrder) -> dict:
     # 支付时间
@@ -53,18 +59,8 @@ def config_meta_data(wechat_order: WechatOrder) -> Order:
 
 
 def convert_type(type: DealType):
-    type_dict: dict[DealType, Type] = {
-        DealType.SEND: Type.SEND,
-        DealType.RECV: Type.RECV,
-        DealType.NIL: Type.UNKNOW,
-    }
-
-    return type_dict.get(type, Type.UNKNOW)
+    return TYPE_MAP.get(type, Type.UNKNOW)
 
 
 def convert_to_ir(wechat_orders: list[WechatOrder]):
-    ir = IR()
-    for wechat_order in wechat_orders:
-        ir_order = config_meta_data(wechat_order)
-        ir.orders.append(ir_order)
-    return ir
+    return IR(orders=[config_meta_data(wechat_order) for wechat_order in wechat_orders])

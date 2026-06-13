@@ -2,11 +2,25 @@ import json
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Callable
+from typing import Pattern
 
 from ir.ir import IR, Order
 from package.config import Config
 from package.parser.paser import Paser
 from package.strategy.template.strategy import TemplateStrategy
+
+MONTH_PATTERN: Pattern[str] = re.compile(r"^\d{4}-(\d{2})-\d{2}")
+PostProcessor = Callable[[IR], IR]
+
+
+def _post_process_alipay(ir: IR) -> IR:
+    from provider.ali.processor import post_process
+
+    return post_process(ir)
+
+
+POST_PROCESSORS: dict[str, PostProcessor] = {"alipay": _post_process_alipay}
 
 
 class Compiler:
@@ -18,6 +32,7 @@ class Compiler:
         template_strategy: TemplateStrategy,
         analyser: Paser,
     ):
+        self.provider = privider
         self.privider = privider
         self.config = config
         self.ir = ir
@@ -26,6 +41,23 @@ class Compiler:
 
     def compile(self):
         logging.debug("start compile")
+        data_str = json.dumps(self.build_result(), ensure_ascii=False)
+        print(data_str)
+
+    def build_result(self) -> dict:
+        self.apply_accounts()
+        self.apply_provider_post_process()
+        self.render_orders()
+
+        expense_data = self.distribution(self.template_strategy.expense_list)
+        income_data = self.distribution(self.template_strategy.income_list)
+
+        return {
+            "expense": {k: sorted(v) for k, v in sorted(expense_data.items())},
+            "income": {k: sorted(v) for k, v in sorted(income_data.items())},
+        }
+
+    def apply_accounts(self) -> None:
         orders: list[Order] = []
         for o in self.ir.orders:
             ignore, res_minus, res_plus, extra_account, tags = (
@@ -41,30 +73,20 @@ class Compiler:
 
         self.ir.orders = orders
 
-        if self.privider == "alipay":
-            from provider.ali.processor import post_process
+    def apply_provider_post_process(self) -> None:
+        post_processor = POST_PROCESSORS.get(self.provider)
+        if post_processor is not None:
+            self.ir = post_processor(self.ir)
 
-            self.ir = post_process(self.ir)
-
+    def render_orders(self) -> None:
         for io in self.ir.orders:
             self.template_strategy.template_parser(io)
-        expense_data = self.distribution(self.template_strategy.expense_list)
-        income_data = self.distribution(self.template_strategy.income_list)
-
-        result = {
-            "expense": {k: sorted(v) for k, v in sorted(expense_data.items())},
-            "income": {k: sorted(v) for k, v in sorted(income_data.items())},
-        }
-
-        data_str = json.dumps(result, ensure_ascii=False)
-        print(data_str)
 
     def distribution(self, bean_bill_list: list):
-        r = r"^\d{4}-(\d{2})-\d{2}"
         monthly_data = defaultdict(list)
 
         for item in bean_bill_list:
-            match_obj = re.match(r, item)
+            match_obj = MONTH_PATTERN.match(item)
             if match_obj:
                 month = match_obj.group(1)
                 monthly_data[month].append(item)

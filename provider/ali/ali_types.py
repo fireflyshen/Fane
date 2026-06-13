@@ -17,6 +17,7 @@ class DealStatus(Enum):
     CLOSE = "交易关闭"
     REPAY = "还款成功"
     SHOP_PENDING = "等待确认收货"
+    REFUND = "退款成功"
 
 
 @dataclass
