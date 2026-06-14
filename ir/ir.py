@@ -2,7 +2,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Dict, List, Any
+from typing import Any, Optional
 
 from pydantic import Field
 from pydantic.dataclasses import dataclass
@@ -30,45 +30,45 @@ class Account(Enum):
 
 @dataclass
 class Order:
-    order_type: Optional["OrderType"] = Field(
+    order_type: OrderType = Field(
         default=OrderType.NORMAL, description="订单类型"
     )
     peer: Optional[str] = Field(default=None, description="交易对手")
-    item: Optional[str] = Field(default="", description="商品名")
-    category: Optional[str] = Field(default="", description="分类")
+    item: str = Field(default="", description="商品名")
+    category: str = Field(default="", description="分类")
     merchant_order_id: Optional[str] = Field(default="", description="商户订单号")
-    order_id: Optional[str] = Field(default="", description="内部订单号")
-    money: Optional[Decimal] = Field(default=Decimal("0.0"), description="金额")
-    note: Optional[str] = Field(default="", description="备注")
+    order_id: str = Field(default="", description="内部订单号")
+    money: Decimal = Field(default=Decimal("0.0"), description="金额")
+    note: str = Field(default="", description="备注")
     pay_time: Optional[datetime] = Field(default=None, description="支付时间")
-    type: Optional["Type"] = Field(default=None, description="收支类型")
-    type_original: Optional[str] = Field(default="", description="原始类型字符串")
-    tx_type_original: Optional[str] = Field(default="", description="原始交易类型")
-    method: Optional[str] = Field(default="", description="支付方式")
-    amount: Optional[Decimal] = Field(default=Decimal("0.0"))
-    price: Optional[Decimal] = Field(default=Decimal("0.0"))
-    currency: Optional[str] = Field(default="CNY")
-    commission: Optional[Decimal] = Field(default=Decimal("0.0"), description="手续费")
-    units: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    extra_account: Optional[Dict[str, str]] = Field(
+    type: Optional[Type] = Field(default=None, description="收支类型")
+    type_original: str = Field(default="", description="原始类型字符串")
+    tx_type_original: str = Field(default="", description="原始交易类型")
+    method: str = Field(default="", description="支付方式")
+    amount: Decimal = Field(default=Decimal("0.0"))
+    price: Decimal = Field(default=Decimal("0.0"))
+    currency: str = Field(default="CNY")
+    commission: Decimal = Field(default=Decimal("0.0"), description="手续费")
+    units: dict[str, Any] = Field(default_factory=dict)
+    extra_account: dict[str, str] = Field(
         default_factory=dict, description="额外账户,盈亏账户"
     )
-    minus_account: Optional[str] = Field(default="", description="负向账户")
-    plus_account: Optional[str] = Field(default="", description="正向账户")
-    minus_str: Optional[str] = Field(
+    minus_account: str = Field(default="", description="负向账户")
+    plus_account: str = Field(default="", description="正向账户")
+    minus_str: str = Field(
         default="", description="负向字符串，用来解决外币转换问题"
     )
-    plus_str: Optional[str] = Field(
+    plus_str: str = Field(
         default="", description="正向字符串，用来解决外币转换问题"
     )
-    meta_data: Optional[Dict[str, str]] = Field(
+    meta_data: dict[str, str] = Field(
         default_factory=dict, description="元数据"
     )
-    tags: Optional[List[str]] = Field(default_factory=list, description="标签")
+    tags: list[str] = Field(default_factory=list, description="标签")
 
 
 @dataclass
 class IR:
-    orders: Optional[List[Order]] = Field(
+    orders: list[Order] = Field(
         default_factory=list, description="放置同用类型的订单"
     )

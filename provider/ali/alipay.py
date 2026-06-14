@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Iterable, Mapping
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import pandas as pd
 
@@ -60,7 +60,7 @@ class AliPay(TabularProvider[AliOrder]):
             )
             self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
             for _, row in df.iterrows():
-                yield row
+                yield cast(dict[str, Any], row.to_dict())
         except FileNotFoundError as fe:
             logging.error("文件未找到")
             raise
@@ -70,21 +70,21 @@ class AliPay(TabularProvider[AliOrder]):
             logging.exception("发生未知错误")
             raise
 
-    def translate_order(self, row: Mapping[str, Any]) -> None:
+    def parse_order(self, row: Mapping[str, Any]) -> AliOrder | None:
         pay_time = self.parse_datetime(row["交易时间"], "交易时间")
 
         # 如果首付款方式为空，说明这可能是已经被关闭的交易，不计入账本
         if pd.isna(row["收/付款方式"]):
-            return
+            return None
 
-        ali_order = AliOrder(
+        return AliOrder(
             category=row["交易分类"],
             deal_no=str(row["交易订单号"]).strip(),
             merchant_id=str(row["商家订单号"]).strip(),
             peer=row["交易对方"],
             item_name=row["商品说明"],
             peer_account=row["对方账号"],
-            money=row["金额"],
+            money=self.parse_decimal(row["金额"], "金额"),
             pay_time=pay_time,
             type=self.parse_enum(DealType, row["收/支"], "收/支"),
             status=self.parse_enum(DealStatus, row["交易状态"], "交易状态"),
@@ -94,8 +94,6 @@ class AliPay(TabularProvider[AliOrder]):
             notes=str(row["备注"]),
             type_original=row["收/支"],
         )
-
-        self.orders.append(ali_order)
 
     def convert_orders(self, orders: list[AliOrder]) -> IR:
         return convert_to_ir(orders)

@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -7,7 +7,7 @@ from ir.ir import IR
 from package.errors import ProviderError
 from provider.wechat.converter import convert_to_ir
 from provider.base import TabularProvider
-from provider.wechat.wecaht_types import DealType, TxType, WechatOrder
+from provider.wechat.wechat_types import DealType, TxType, WechatOrder
 
 REQUIRED_COLUMNS = (
     "交易时间",
@@ -30,7 +30,7 @@ class Wechat(TabularProvider[WechatOrder]):
             df = pd.read_excel(filename, skiprows=start_index, dtype=str)
             self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
             for _, row in df.iterrows():
-                yield row
+                yield cast(dict[str, Any], row.to_dict())
         except ProviderError:
             raise
         except Exception as e:
@@ -44,10 +44,10 @@ class Wechat(TabularProvider[WechatOrder]):
                 return i
         return 0
 
-    def translate_order(self, row: Mapping[str, Any]) -> None:
+    def parse_order(self, row: Mapping[str, Any]) -> WechatOrder | None:
         pay_time = self.parse_datetime(row["交易时间"], "交易时间")
 
-        wechat_order = WechatOrder(
+        return WechatOrder(
             order_id=row["交易单号"],
             mechant_order_id=row["商户单号"],
             pay_time=pay_time,
@@ -55,15 +55,13 @@ class Wechat(TabularProvider[WechatOrder]):
             type_original=row["收/支"],
             peer=row["交易对方"],
             item=row["商品"],
-            money=str(row["金额(元)"]).replace("¥", ""),
+            money=self.parse_decimal(row["金额(元)"], "金额(元)"),
             status=row["当前状态"],
             method=row["支付方式"],
             tx_type=self.parse_enum(TxType, row["交易类型"], "交易类型"),
             tx_type_original=row["交易类型"],
             commision="",
         )
-
-        self.orders.append(wechat_order)
 
     def convert_orders(self, orders: list[WechatOrder]) -> IR:
         return convert_to_ir(orders)

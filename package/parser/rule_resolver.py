@@ -1,9 +1,22 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional, Protocol
 
 from ir.ir import Order, Type
 from package.parser.utils.utils import split_find_contains
+
+ExtraAccounts = dict[str, str]
+AccountResolutionTuple = tuple[
+    bool, Optional[str], Optional[str], ExtraAccounts, list[str]
+]
+
+
+class RuleLike(Protocol):
+    separator: Optional[str]
+    ignore: Optional[bool]
+    target_account: Optional[str]
+    method_account: Optional[str]
+    tags: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -11,10 +24,10 @@ class AccountResult:
     ignore: bool
     minus_account: Optional[str]
     plus_account: Optional[str]
-    extra_account: dict
+    extra_account: ExtraAccounts
     tags: list[str]
 
-    def as_tuple(self) -> tuple:
+    def as_tuple(self) -> AccountResolutionTuple:
         return (
             self.ignore,
             self.minus_account,
@@ -33,7 +46,7 @@ class MatchField:
 @dataclass(frozen=True)
 class ExtraAccountField:
     rule_attr: str
-    account_key: Any
+    account_key: str
 
 
 class RuleAccountResolver:
@@ -48,15 +61,15 @@ class RuleAccountResolver:
     def resolve(
         self,
         order: Order,
-        rules: Iterable[Any],
+        rules: Iterable[RuleLike],
         default_minus_account: Optional[str],
         default_plus_account: Optional[str],
     ) -> AccountResult:
         ignore = False
         minus_account = default_minus_account
         plus_account = default_plus_account
-        extra_account = {}
-        tags = []
+        extra_account: ExtraAccounts = {}
+        tags: list[str] = []
 
         for rule in rules:
             match = self._matches_rule(rule, order)
@@ -83,7 +96,7 @@ class RuleAccountResolver:
 
         return AccountResult(ignore, minus_account, plus_account, extra_account, tags)
 
-    def _matches_rule(self, rule: Any, order: Order) -> bool:
+    def _matches_rule(self, rule: RuleLike, order: Order) -> bool:
         match = True
         separator = self._separator(rule)
         for field in self.match_fields:
@@ -93,7 +106,7 @@ class RuleAccountResolver:
                 match = split_find_contains(rule_value, order_value, separator, match)
         return match
 
-    def _separator(self, rule: Any) -> str:
+    def _separator(self, rule: RuleLike) -> str:
         if rule.separator is not None:
             return rule.separator
         return ","
@@ -101,7 +114,7 @@ class RuleAccountResolver:
     def _resolve_accounts(
         self,
         order: Order,
-        rule: Any,
+        rule: RuleLike,
         minus_account: Optional[str],
         plus_account: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
@@ -117,12 +130,14 @@ class RuleAccountResolver:
                 minus_account = rule.method_account
         return minus_account, plus_account
 
-    def _resolve_extra_account(self, rule: Any, extra_account: dict) -> dict:
+    def _resolve_extra_account(
+        self, rule: RuleLike, extra_account: ExtraAccounts
+    ) -> ExtraAccounts:
         for field in self.extra_account_fields:
             account = getattr(rule, field.rule_attr)
             if account is not None:
-                extra_account = {field.account_key: account}
+                extra_account = {field.account_key: str(account)}
         return extra_account
 
     def _is_refund(self, order: Order) -> bool:
-        return str.startswith(order.item, "退款")
+        return order.item.startswith("退款")

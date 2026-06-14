@@ -10,9 +10,9 @@ TYPE_MAP: dict[DealType, Type] = {
 }
 
 
-def get_private_meta_data(ali_order: AliOrder) -> dict:
+def get_private_meta_data(ali_order: AliOrder) -> dict[str, str]:
     source = "ALiPay"
-    d = {}
+    d: dict[str, str] = {}
     if source:
         d["source"] = source
     if ali_order.pay_time:
@@ -59,9 +59,9 @@ def config_meta_data(ali_order: AliOrder) -> Order:
     return ir_order
 
 
-def convert_type(type: DealType):
-    return TYPE_MAP.get(type, Type.UNKNOW)
+def convert_type(deal_type: DealType) -> Type:
+    return TYPE_MAP.get(deal_type, Type.UNKNOW)
 
 
-def convert_to_ir(ali_orders: list[AliOrder]):
+def convert_to_ir(ali_orders: list[AliOrder]) -> IR:
     return IR(orders=[config_meta_data(ali_order) for ali_order in ali_orders])

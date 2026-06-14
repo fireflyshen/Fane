@@ -1,5 +1,5 @@
 from ir.ir import IR, Order, Type
-from provider.wechat.wecaht_types import WechatOrder, DealType
+from provider.wechat.wechat_types import DealType, WechatOrder
 
 TYPE_MAP: dict[DealType, Type] = {
     DealType.SEND: Type.SEND,
@@ -8,10 +8,10 @@ TYPE_MAP: dict[DealType, Type] = {
 }
 
 
-def get_private_meta_data(wechat_order: WechatOrder) -> dict:
+def get_private_meta_data(wechat_order: WechatOrder) -> dict[str, str]:
     # 支付时间
     source = "WeChat"
-    d = {}
+    d: dict[str, str] = {}
     if source:
         d["source"] = source
     if wechat_order.pay_time:
@@ -58,9 +58,9 @@ def config_meta_data(wechat_order: WechatOrder) -> Order:
     return ir_order
 
 
-def convert_type(type: DealType):
-    return TYPE_MAP.get(type, Type.UNKNOW)
+def convert_type(deal_type: DealType) -> Type:
+    return TYPE_MAP.get(deal_type, Type.UNKNOW)
 
 
-def convert_to_ir(wechat_orders: list[WechatOrder]):
+def convert_to_ir(wechat_orders: list[WechatOrder]) -> IR:
     return IR(orders=[config_meta_data(wechat_order) for wechat_order in wechat_orders])

@@ -1,6 +1,7 @@
 from ir.ir import Account, Order
 from package.config import Config
 from package.parser.rule_resolver import (
+    AccountResolutionTuple,
     ExtraAccountField,
     MatchField,
     RuleAccountResolver,
@@ -15,14 +16,14 @@ ALIPAY_RESOLVER = RuleAccountResolver(
         MatchField("category", "category"),
         MatchField("note", "note"),
     ),
-    extra_account_fields=(ExtraAccountField("pnl_account", Account.pnl_account),),
+    extra_account_fields=(ExtraAccountField("pnl_account", Account.pnl_account.value),),
 )
 
 
 class AlipayAnalyser:
-    def get_account_and_tags(self, o: Order, cfg: Config) -> tuple:
+    def get_account_and_tags(self, o: Order, cfg: Config) -> AccountResolutionTuple:
 
-        if cfg.ali == None or cfg.ali.rules == None or len(cfg.ali.rules) == 0:
+        if cfg.ali is None or cfg.ali.rules is None or len(cfg.ali.rules) == 0:
             return (
                 False,
                 cfg.default_minus_account,

@@ -2,52 +2,44 @@ import json
 import logging
 import re
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Pattern
 
 from ir.ir import IR, Order
+from package.compiler.post_processors import apply_post_processor
 from package.config import Config
-from package.parser.paser import Paser
+from package.parser.analyser import Analyser
 from package.strategy.template.strategy import TemplateStrategy
 
 MONTH_PATTERN: Pattern[str] = re.compile(r"^\d{4}-(\d{2})-\d{2}")
-PostProcessor = Callable[[IR], IR]
-
-
-def _post_process_alipay(ir: IR) -> IR:
-    from provider.ali.processor import post_process
-
-    return post_process(ir)
-
-
-POST_PROCESSORS: dict[str, PostProcessor] = {"alipay": _post_process_alipay}
+CompiledResult = dict[str, dict[str, list[str]]]
 
 
 class Compiler:
     def __init__(
         self,
-        privider: str,
+        provider: str,
         config: Config,
         ir: IR,
         template_strategy: TemplateStrategy,
-        analyser: Paser,
+        analyser: Analyser,
     ):
-        self.provider = privider
-        self.privider = privider
+        self.provider = provider
+        self.privider = provider
         self.config = config
         self.ir = ir
         self.template_strategy = template_strategy
         self.analyser = analyser
 
-    def compile(self):
+    def compile(self) -> None:
         logging.debug("start compile")
         data_str = json.dumps(self.build_result(), ensure_ascii=False)
         print(data_str)
 
-    def build_result(self) -> dict:
-        self.apply_accounts()
-        self.apply_provider_post_process()
-        self.render_orders()
+    def build_result(self) -> CompiledResult:
+        self.ir.orders = self.resolve_accounts(self.ir.orders or [])
+        self.ir = apply_post_processor(self.provider, self.ir, self.config)
+        self.render_orders(self.ir.orders or [])
 
         expense_data = self.distribution(self.template_strategy.expense_list)
         income_data = self.distribution(self.template_strategy.income_list)
@@ -57,9 +49,9 @@ class Compiler:
             "income": {k: sorted(v) for k, v in sorted(income_data.items())},
         }
 
-    def apply_accounts(self) -> None:
+    def resolve_accounts(self, source_orders: Iterable[Order]) -> list[Order]:
         orders: list[Order] = []
-        for o in self.ir.orders:
+        for o in source_orders:
             ignore, res_minus, res_plus, extra_account, tags = (
                 self.analyser.get_account_and_tags(o, self.config)
             )
@@ -70,20 +62,20 @@ class Compiler:
             o.extra_account = extra_account
             o.tags = tags
             orders.append(o)
+        return orders
 
-        self.ir.orders = orders
+    def apply_accounts(self) -> None:
+        self.ir.orders = self.resolve_accounts(self.ir.orders or [])
 
     def apply_provider_post_process(self) -> None:
-        post_processor = POST_PROCESSORS.get(self.provider)
-        if post_processor is not None:
-            self.ir = post_processor(self.ir)
+        self.ir = apply_post_processor(self.provider, self.ir, self.config)
 
-    def render_orders(self) -> None:
-        for io in self.ir.orders:
+    def render_orders(self, orders: Iterable[Order] | None = None) -> None:
+        for io in orders if orders is not None else self.ir.orders or []:
             self.template_strategy.template_parser(io)
 
-    def distribution(self, bean_bill_list: list):
-        monthly_data = defaultdict(list)
+    def distribution(self, bean_bill_list: list[str]) -> dict[str, list[str]]:
+        monthly_data: defaultdict[str, list[str]] = defaultdict(list)
 
         for item in bean_bill_list:
             match_obj = MONTH_PATTERN.match(item)

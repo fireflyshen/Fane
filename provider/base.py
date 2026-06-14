@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 from ir.ir import IR
 from package.errors import ProviderError
@@ -13,15 +14,14 @@ EnumT = TypeVar("EnumT", bound=Enum)
 
 
 class TabularProvider(ABC, Generic[OrderT]):
-    def __init__(self):
-        self.orders: list[OrderT] = []
-
     def translate(self, filename: str) -> IR:
         self.validate_source(filename)
-        self.orders = []
+        orders: list[OrderT] = []
         for row in self.iter_rows(filename):
-            self.translate_order(row)
-        return self.convert_orders(self.orders)
+            order = self.parse_order(row)
+            if order is not None:
+                orders.append(order)
+        return self.convert_orders(orders)
 
     def validate_source(self, filename: str) -> None:
         if not filename:
@@ -58,12 +58,21 @@ class TabularProvider(ABC, Generic[OrderT]):
         except ValueError as ve:
             raise ProviderError(f"{field_name} 包含不支持的值: {value}") from ve
 
+    def parse_decimal(self, value: Any, field_name: str) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        normalized_value = str(value).replace("¥", "").replace(",", "").strip()
+        try:
+            return Decimal(normalized_value)
+        except InvalidOperation as ve:
+            raise ProviderError(f"{field_name} 金额格式错误: {value}") from ve
+
     @abstractmethod
     def iter_rows(self, filename: str) -> Iterable[Mapping[str, Any]]:
         pass
 
     @abstractmethod
-    def translate_order(self, row: Mapping[str, Any]) -> None:
+    def parse_order(self, row: Mapping[str, Any]) -> Optional[OrderT]:
         pass
 
     @abstractmethod

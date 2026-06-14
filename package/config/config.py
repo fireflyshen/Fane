@@ -6,6 +6,20 @@ from provider.ali.rules import ALi
 from provider.wechat.rules import WeChat
 
 
+class ForeignCreditCardRepayment(BaseModel):
+    trigger_minus_account: Optional[str] = Field(
+        alias="trigger-minus-account", default=None
+    )
+    trigger_plus_account: Optional[str] = Field(
+        alias="trigger-plus-account", default=None
+    )
+    liability_account: str = Field(alias="liability-account")
+    ledger_file: str = Field(alias="ledger-file")
+    currency: str = Field(default="USD")
+    peer: Optional[str] = Field(default=None)
+    item: Optional[str] = Field(default=None)
+
+
 class Config(BaseModel):
     title: Optional[str] = Field(alias="title", default=None)
     default_minus_account: Optional[str] = Field(
@@ -32,3 +46,6 @@ class Config(BaseModel):
     default_currency: Optional[str] = Field(alias="default-currency", default=None)
     ali: Optional[ALi] = Field(alias="alipay", default=None)
     wechat: Optional[WeChat] = Field(alias="wechat", default=None)
+    foreign_credit_card_repayments: Optional[list[ForeignCreditCardRepayment]] = Field(
+        alias="foreign-credit-card-repayments", default=None
+    )

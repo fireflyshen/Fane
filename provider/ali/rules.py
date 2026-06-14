@@ -1,10 +1,8 @@
-from dataclasses import dataclass
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
-@dataclass
 class Rule(BaseModel):
     peer: Optional[str] = Field(default=None, description="交易对方")
     note: Optional[str] = Field(default=None, description="备注")
@@ -44,6 +42,5 @@ class Rule(BaseModel):
     )
 
 
-@dataclass
-class ALi:
+class ALi(BaseModel):
     rules: Optional[list[Rule]] = Field(default=None)

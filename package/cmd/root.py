@@ -7,12 +7,12 @@ from typing_extensions import Annotated
 import package.config.init as cfg
 from package.errors import ConfigError
 
-cfg_file: str = None
+cfg_file: str | None = None
 app = typer.Typer(help="fflow")
-config_file = Path().home() / ".flow" / "bill.yaml"
+config_file = Path().home() / ".flow" / "config.yaml"
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         try:
             pkg_version = version("bill-flow-enmu")
@@ -25,25 +25,25 @@ def version_callback(value: bool):
 
 @app.callback()
 def initialize(
-        ctx: typer.Context,
-        config: Annotated[
-            Path,
-            typer.Option(
-                "--config",
-                "-c",
-                help="config file (default is $HOME/.double-entry-generator.yaml)",
-            ),
-        ] = str(config_file),
-        toogle: Annotated[
-            bool, typer.Option("--toggle", "-t", help="Help message for toggle")
-        ] = False,
-        version: Annotated[
-            bool,
-            typer.Option(
-                "--version", "-v", is_eager=True, callback=version_callback, help="version"
-            ),
-        ] = False,
-):
+    ctx: typer.Context,
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="config file (default is $HOME/.flow/config.yaml)",
+        ),
+    ] = str(config_file),
+    toogle: Annotated[
+        bool, typer.Option("--toggle", "-t", help="Help message for toggle")
+    ] = False,
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version", "-v", is_eager=True, callback=version_callback, help="version"
+        ),
+    ] = False,
+) -> None:
     if ctx.invoked_subcommand == "version":
         return
     global cfg_file
