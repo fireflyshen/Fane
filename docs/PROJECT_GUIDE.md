@@ -17,7 +17,8 @@ Fane 的核心目标很简单：
   -> Analyser 根据 config 解析账户
   -> Post Processor 做来源特有的补充处理
   -> Template Strategy 渲染 Beancount
-  -> JSON 输出 expense/income 按月份分组
+  -> RenderedEntry 结构化结果
+  -> JSON/JSONL/Beancount 输出，或直接 import 写入账本
 ```
 
 对应代码：
@@ -45,6 +46,34 @@ package/template/
 
 ```bash
 .venv/bin/python main.py --config example/config.yaml trans --provider wechat --source example/3.xlsx
+```
+
+`trans` 默认输出保持历史兼容，仍然是按 `expense/income` 和月份分组的 JSON。
+
+如果想要更适合 UNIX 管道的输出，可以显式指定格式：
+
+```bash
+.venv/bin/python main.py --config example/config.yaml trans --provider wechat --source example/3.xlsx --format beancount
+.venv/bin/python main.py --config example/config.yaml trans --provider wechat --source example/3.xlsx --format jsonl
+```
+
+如果想让 Fane 直接落盘，可以用 `import`：
+
+```bash
+.venv/bin/python main.py --config example/config.yaml import --provider wechat --source example/3.xlsx --journal-dir ~/.flow/account/journal
+```
+
+`import` 会按年份目录写入：
+
+```text
+支出 -> {journal-dir}/{year}/{year}-{month}.bean
+收入 -> {journal-dir}/{year}/income.bean
+```
+
+并通过 fingerprint 索引避免重复导入。默认索引位置是：
+
+```text
+{journal-dir}/../.fane/imported.jsonl
 ```
 
 如果安装成命令行工具，则脚本名是 `fa`，定义在 `pyproject.toml`：
@@ -505,6 +534,7 @@ ignore          是否忽略
 tags            标签
 separator       多值分隔符，默认逗号
 time            匹配一天内的时间段，例如 08:00..09:00
+day-range       匹配每个月的日期段，例如 15-16
 timestamp-range 匹配完整日期/时间区间，例如 2026-06-01..2026-06-30
 min-price       最小金额，闭区间
 max-price       最大金额，闭区间
@@ -526,6 +556,17 @@ alipay:
       min-price: 100.00
       max-price: 200.00
       target-account: Expenses:Food:Groceries
+```
+
+“每个月 15 到 16 号，金额在 100 到 200 之间”这样写：
+
+```yaml
+alipay:
+  rules:
+    - day-range: 15-16
+      min-amount: 100.00
+      max-amount: 200.00
+      target-account: Expenses:Monthly:MidMonth
 ```
 
 再比如“每天早上 8 点到 9 点，金额在 7 到 8 元之间的微信交易，归到公交”：

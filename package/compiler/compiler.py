@@ -7,9 +7,11 @@ from typing import Pattern
 
 from ir.ir import IR, Order
 from package.compiler.post_processors import apply_post_processor
+from package.compiler.results import RenderedEntry, fingerprint_order
 from package.config import Config
 from package.parser.analyser import Analyser
 from package.strategy.template.strategy import TemplateStrategy
+from package.strategy.template.normal import NormalStrategy
 
 MONTH_PATTERN: Pattern[str] = re.compile(r"^\d{4}-(\d{2})-\d{2}")
 CompiledResult = dict[str, dict[str, list[str]]]
@@ -30,6 +32,7 @@ class Compiler:
         self.ir = ir
         self.template_strategy = template_strategy
         self.analyser = analyser
+        self.source_file = ""
 
     def compile(self) -> None:
         logging.debug("start compile")
@@ -37,8 +40,7 @@ class Compiler:
         print(data_str)
 
     def build_result(self) -> CompiledResult:
-        self.ir.orders = self.resolve_accounts(self.ir.orders or [])
-        self.ir = apply_post_processor(self.provider, self.ir, self.config)
+        self.prepare_ir()
         self.render_orders(self.ir.orders or [])
 
         expense_data = self.distribution(self.template_strategy.expense_list)
@@ -48,6 +50,38 @@ class Compiler:
             "expense": {k: sorted(v) for k, v in sorted(expense_data.items())},
             "income": {k: sorted(v) for k, v in sorted(income_data.items())},
         }
+
+    def prepare_ir(self) -> IR:
+        self.ir.orders = self.resolve_accounts(self.ir.orders or [])
+        self.ir = apply_post_processor(self.provider, self.ir, self.config)
+        return self.ir
+
+    def build_entries(self, source_file: str = "") -> list[RenderedEntry]:
+        self.source_file = source_file
+        self.prepare_ir()
+        entries: list[RenderedEntry] = []
+        renderer = self.template_strategy
+        for order in self.ir.orders or []:
+            if not isinstance(renderer, NormalStrategy):
+                self.template_strategy.template_parser(order)
+                continue
+            kind, content = renderer.render_order(order)
+            entry_date = (
+                order.pay_time.date() if order.pay_time else self._entry_date(content)
+            )
+            entries.append(
+                RenderedEntry(
+                    date=entry_date,
+                    month=f"{entry_date.month:02d}",
+                    kind=kind,
+                    fingerprint=fingerprint_order(self.provider, order),
+                    content=content,
+                    source_provider=self.provider,
+                    source_file=source_file,
+                    order_id=order.order_id or order.meta_data.get("order_id") or None,
+                )
+            )
+        return entries
 
     def resolve_accounts(self, source_orders: Iterable[Order]) -> list[Order]:
         orders: list[Order] = []
@@ -83,3 +117,11 @@ class Compiler:
                 month = match_obj.group(1)
                 monthly_data[month].append(item)
         return dict(monthly_data)
+
+    def _entry_date(self, content: str):
+        from datetime import datetime
+
+        match_obj = MONTH_PATTERN.match(content)
+        if match_obj:
+            return datetime.strptime(content[:10], "%Y-%m-%d").date()
+        raise ValueError("无法从渲染结果中解析交易日期")

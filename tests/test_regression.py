@@ -15,7 +15,7 @@ from package.parser.ali.alipay import AlipayAnalyser
 from package.parser.wechat.wechat import WechatAnalyser
 from provider.ali.alipay import AliPay
 from provider.ali.ali_types import DealStatus
-from provider.ali.processor import post_process
+from provider.ali.processor import post_process, read_account_balance
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,6 +100,114 @@ class CliRegressionTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("请通过 --source/-s 指定账单文件", result.stderr)
+
+    def test_trans_jsonl_format_outputs_structured_entries(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "main.py",
+                "--config",
+                "example/config.yaml",
+                "trans",
+                "--provider",
+                "wechat",
+                "--source",
+                "example/3.xlsx",
+                "--format",
+                "jsonl",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        rows = [json.loads(line) for line in result.stdout.splitlines() if line]
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["kind"], "expense")
+        self.assertEqual(rows[0]["month"], "04")
+        self.assertIn("顺丰速运", rows[0]["content"])
+        self.assertTrue(rows[0]["fingerprint"].startswith("wechat:"))
+
+    def test_trans_beancount_format_outputs_plain_entries(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "main.py",
+                "--config",
+                "example/config.yaml",
+                "trans",
+                "--provider",
+                "wechat",
+                "--source",
+                "example/3.xlsx",
+                "--format",
+                "beancount",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn("2026-04", result.stdout)
+        self.assertIn("顺丰速运", result.stdout)
+        self.assertNotIn('"expense"', result.stdout)
+
+    def test_import_command_writes_entries_once_by_fingerprint(self) -> None:
+        with tempfile.TemporaryDirectory() as journal_dir:
+            dedupe_index = str(Path(journal_dir) / ".fane" / "imported.jsonl")
+            first = subprocess.run(
+                [
+                    sys.executable,
+                    "main.py",
+                    "--config",
+                    "example/config.yaml",
+                    "import",
+                    "--provider",
+                    "wechat",
+                    "--source",
+                    "example/3.xlsx",
+                    "--journal-dir",
+                    journal_dir,
+                    "--dedupe-index",
+                    dedupe_index,
+                ],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            second = subprocess.run(
+                [
+                    sys.executable,
+                    "main.py",
+                    "--config",
+                    "example/config.yaml",
+                    "import",
+                    "--provider",
+                    "wechat",
+                    "--source",
+                    "example/3.xlsx",
+                    "--journal-dir",
+                    journal_dir,
+                    "--dedupe-index",
+                    dedupe_index,
+                ],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            first_result = json.loads(first.stdout)
+            second_result = json.loads(second.stdout)
+            target_file = Path(journal_dir) / "2026" / "2026-04.bean"
+
+            self.assertEqual(first_result, {"written": 1, "skipped": 0})
+            self.assertEqual(second_result, {"written": 0, "skipped": 1})
+            self.assertIn("顺丰速运", target_file.read_text(encoding="utf-8"))
 
 
 class RuleRegressionTest(unittest.TestCase):
@@ -222,6 +330,62 @@ class RuleRegressionTest(unittest.TestCase):
             (
                 False,
                 "Liabilities:CreditCard:ICBC-8393",
+                "Expenses:FIXME",
+                {},
+                [],
+            ),
+        )
+
+    def test_alipay_rule_can_match_monthly_day_range(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "default-minus-account": "Assets:FIXME",
+                "default-plus-account": "Expenses:FIXME",
+                "alipay": {
+                    "rules": [
+                        {
+                            "day-range": "15-16",
+                            "min-amount": "100.00",
+                            "max-amount": "200.00",
+                            "target-account": "Expenses:Monthly:MidMonth",
+                        }
+                    ]
+                },
+            }
+        )
+        matching_order = Order(
+            peer="测试商户",
+            item="月中消费",
+            money=Decimal("150.00"),
+            pay_time=datetime(2026, 7, 15, 12, 30, 0),
+            type=Type.SEND,
+        )
+        outside_order = Order(
+            peer="测试商户",
+            item="月中消费",
+            money=Decimal("150.00"),
+            pay_time=datetime(2026, 7, 17, 12, 30, 0),
+            type=Type.SEND,
+        )
+
+        matching_result = AlipayAnalyser().get_account_and_tags(matching_order, cfg)
+        outside_result = AlipayAnalyser().get_account_and_tags(outside_order, cfg)
+
+        self.assertEqual(
+            matching_result,
+            (
+                False,
+                "Assets:FIXME",
+                "Expenses:Monthly:MidMonth",
+                {},
+                [],
+            ),
+        )
+        self.assertEqual(
+            outside_result,
+            (
+                False,
+                "Assets:FIXME",
                 "Expenses:FIXME",
                 {},
                 [],
@@ -353,6 +517,38 @@ class AlipayPostProcessRegressionTest(unittest.TestCase):
         self.assertEqual(result.orders[1].minus_account, "Assets:DebitCard:ICBC:4931")
         self.assertEqual(result.orders[1].plus_str, "123.45 USD @@ 895.20 CNY")
         self.assertEqual(result.orders[1].minus_str, "-895.20 CNY")
+
+    def test_foreign_card_balance_includes_balance_directive(self) -> None:
+        with tempfile.TemporaryDirectory() as ledger_dir:
+            ledger_path = Path(ledger_dir) / "main.bean"
+            init_path = Path(ledger_dir) / "init.bean"
+            journal_path = Path(ledger_dir) / "journal.bean"
+            ledger_path.write_text(
+                'include "./init.bean"\ninclude "./journal.bean"\n',
+                encoding="utf-8",
+            )
+            init_path.write_text(
+                "2025-11-19 pad Liabilities:CreditCard:ICBC-5788 "
+                "Equity:Opening-Balances\n"
+                "2025-11-20 balance Liabilities:CreditCard:ICBC-5788 "
+                "-19.99 USD\n",
+                encoding="utf-8",
+            )
+            journal_path.write_text(
+                '2026-06-01 * "Apple" "Gift Card"\n'
+                "  Assets:Digital:AppleID                    25.00 USD\n"
+                "  Liabilities:CreditCard:ICBC-5788         -25.00 USD\n"
+                '2026-06-12 * "ICBC" "Rebate"\n'
+                "  Liabilities:CreditCard:ICBC-5788           0.72 USD\n"
+                "  Income:Rebates                            -0.72 USD\n",
+                encoding="utf-8",
+            )
+
+            balance = read_account_balance(
+                str(ledger_path), "Liabilities:CreditCard:ICBC-5788", "USD"
+            )
+
+        self.assertEqual(balance, Decimal("-44.27"))
 
 
 class RobustnessTest(unittest.TestCase):

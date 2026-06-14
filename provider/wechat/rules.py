@@ -14,6 +14,9 @@ class Rule(BaseModel):
     status: Optional[str] = Field(default=None, description="交易状态")
     separator: Optional[str] = Field(default=None, description="分割符")
     time: Optional[str] = Field(default=None, description="交易时间段")
+    day_range: Optional[str] = Field(
+        alias="day-range", default=None, description="每月日期段"
+    )
     timestamp_range: Optional[str] = Field(
         alias="timestamp-range", default=None, description="交易时间戳段"
     )

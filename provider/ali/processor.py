@@ -13,6 +13,10 @@ POSTING_PATTERN_TEMPLATE = (
     r"^\s+{account}\s+([+-]?[0-9][0-9,]*(?:\.[0-9]+)?)"
     r"\s+([A-Z][A-Z0-9._'-]*)\b"
 )
+BALANCE_PATTERN_TEMPLATE = (
+    r"^\d{{4}}-\d{{2}}-\d{{2}}\s+balance\s+{account}\s+"
+    r"([+-]?[0-9][0-9,]*(?:\.[0-9]+)?)\s+([A-Z][A-Z0-9._'-]*)\b"
+)
 INCLUDE_PATTERN = re.compile(r'^\s*include\s+"([^"]+)"')
 
 
@@ -100,10 +104,22 @@ def read_account_balance(ledger_file: str, account: str, currency: str) -> Decim
     if not ledger_path.is_file():
         raise ProviderError(f"外币信用卡账本文件不存在: {ledger_file}")
 
-    pattern = re.compile(POSTING_PATTERN_TEMPLATE.format(account=re.escape(account)))
+    posting_pattern = re.compile(
+        POSTING_PATTERN_TEMPLATE.format(account=re.escape(account))
+    )
+    balance_pattern = re.compile(
+        BALANCE_PATTERN_TEMPLATE.format(account=re.escape(account))
+    )
     balance = Decimal("0")
     for line in iter_ledger_lines(ledger_path):
-        match = pattern.match(line)
+        balance_match = balance_pattern.match(line)
+        if balance_match:
+            amount, posting_currency = balance_match.groups()
+            if posting_currency == currency:
+                balance = Decimal(amount.replace(",", ""))
+            continue
+
+        match = posting_pattern.match(line)
         if not match:
             continue
         amount, posting_currency = match.groups()

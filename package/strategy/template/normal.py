@@ -19,7 +19,7 @@ class NormalStrategy(TemplateStrategy):
     def get_template_content(cls, template_name: str) -> Template:
         return get_template(template_name)
 
-    def template_parser(self, order: Order) -> None:
+    def render_order(self, order: Order) -> tuple[str, str]:
         template = self.get_template_content(f"{order.order_type.value}.j2")
         normal_order = NormalOrder(
             pay_time=order.pay_time,
@@ -43,6 +43,12 @@ class NormalStrategy(TemplateStrategy):
         data = template.render(**vars(normal_order))
 
         if "收益发放" in normal_order.item:
+            return "income", data
+        return "expense", data
+
+    def template_parser(self, order: Order) -> None:
+        kind, data = self.render_order(order)
+        if kind == "income":
             self.income_list.append(data)
         else:
             self.expense_list.append(data)

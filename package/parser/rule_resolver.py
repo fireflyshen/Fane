@@ -13,6 +13,7 @@ AccountResolutionTuple = tuple[
     bool, Optional[str], Optional[str], ExtraAccounts, list[str]
 ]
 RANGE_SEPARATORS = ("..", "~", " - ", ",")
+DAY_RANGE_SEPARATORS = ("..", "~", " - ", "-", ",")
 DATETIME_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d")
 TIME_FORMATS = ("%H:%M:%S", "%H:%M")
 
@@ -24,6 +25,7 @@ class RuleLike(Protocol):
     method_account: Optional[str]
     tags: Optional[str]
     time: Optional[str]
+    day_range: Optional[str]
     timestamp_range: Optional[str]
     min_price: Optional[Decimal]
     max_price: Optional[Decimal]
@@ -141,10 +143,18 @@ class RuleAccountResolver:
     def _matches_time_range(
         self, rule: RuleLike, order: Order, match: bool
     ) -> bool:
-        if rule.time is None and rule.timestamp_range is None:
+        if (
+            rule.time is None
+            and rule.day_range is None
+            and rule.timestamp_range is None
+        ):
             return match
         if order.pay_time is None:
             return False
+        if rule.day_range is not None:
+            start_day, end_day = self._parse_day_range(rule.day_range)
+            if not start_day <= order.pay_time.day <= end_day:
+                return False
         if rule.timestamp_range is not None:
             start, end = self._parse_datetime_range(rule.timestamp_range)
             if start is not None and order.pay_time < start:
@@ -177,6 +187,34 @@ class RuleAccountResolver:
             self._parse_clock_time(start_text),
             self._parse_clock_time(end_text),
         )
+
+    def _parse_day_range(self, value: str) -> tuple[int, int]:
+        start_text, end_text = self._split_day_range(value)
+        start_day = self._parse_day(start_text, value)
+        end_day = self._parse_day(end_text, value)
+        if start_day > end_day:
+            raise ConfigError(f"day-range 日期区间配置错误: {value}")
+        return start_day, end_day
+
+    def _split_day_range(self, value: str) -> tuple[str, str]:
+        text = value.strip()
+        if text.isdecimal():
+            return text, text
+        for separator in DAY_RANGE_SEPARATORS:
+            if separator in text:
+                start, end = text.split(separator, 1)
+                return start.strip(), end.strip()
+        raise ConfigError(
+            f"day-range 区间格式错误: {value}。请使用 15..16 或 15-16"
+        )
+
+    def _parse_day(self, value: str, source: str) -> int:
+        if not value.isdecimal():
+            raise ConfigError(f"day-range 日期格式错误: {source}")
+        day = int(value)
+        if day < 1 or day > 31:
+            raise ConfigError(f"day-range 日期必须在 1 到 31 之间: {source}")
+        return day
 
     def _split_range(self, value: str, field_name: str) -> tuple[str, str]:
         text = value.strip()
