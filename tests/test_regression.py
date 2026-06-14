@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -136,6 +137,130 @@ class RuleRegressionTest(unittest.TestCase):
                 False,
                 "Expenses:Utilities:Phone",
                 "Assets:FIXME",
+                {},
+                [],
+            ),
+        )
+
+    def test_alipay_rule_can_match_amount_and_timestamp_range(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "default-minus-account": "Assets:FIXME",
+                "default-plus-account": "Expenses:FIXME",
+                "alipay": {
+                    "rules": [
+                        {
+                            "method": "工商银行信用卡(8393)",
+                            "method-account": "Liabilities:CreditCard:ICBC-8393",
+                        },
+                        {
+                            "timestamp-range": "2026-06-01..2026-06-30",
+                            "min-price": "100.00",
+                            "max-price": "200.00",
+                            "target-account": "Expenses:Food:Groceries",
+                        },
+                    ]
+                },
+            }
+        )
+        order = Order(
+            peer="测试商户",
+            item="测试消费",
+            method="工商银行信用卡(8393)",
+            money=Decimal("150.00"),
+            pay_time=datetime(2026, 6, 14, 12, 30, 0),
+            type=Type.SEND,
+        )
+
+        result = AlipayAnalyser().get_account_and_tags(order, cfg)
+
+        self.assertEqual(
+            result,
+            (
+                False,
+                "Liabilities:CreditCard:ICBC-8393",
+                "Expenses:Food:Groceries",
+                {},
+                [],
+            ),
+        )
+
+    def test_alipay_amount_range_does_not_match_outside_amount(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "default-minus-account": "Assets:FIXME",
+                "default-plus-account": "Expenses:FIXME",
+                "alipay": {
+                    "rules": [
+                        {
+                            "method": "工商银行信用卡(8393)",
+                            "method-account": "Liabilities:CreditCard:ICBC-8393",
+                        },
+                        {
+                            "timestamp-range": "2026-06-01..2026-06-30",
+                            "min-price": "100.00",
+                            "max-price": "200.00",
+                            "target-account": "Expenses:Food:Groceries",
+                        },
+                    ]
+                },
+            }
+        )
+        order = Order(
+            peer="测试商户",
+            item="测试消费",
+            method="工商银行信用卡(8393)",
+            money=Decimal("250.00"),
+            pay_time=datetime(2026, 6, 14, 12, 30, 0),
+            type=Type.SEND,
+        )
+
+        result = AlipayAnalyser().get_account_and_tags(order, cfg)
+
+        self.assertEqual(
+            result,
+            (
+                False,
+                "Liabilities:CreditCard:ICBC-8393",
+                "Expenses:FIXME",
+                {},
+                [],
+            ),
+        )
+
+    def test_wechat_rule_can_match_clock_time_and_amount_range(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "default-minus-account": "Assets:FIXME",
+                "default-plus-account": "Expenses:FIXME",
+                "wechat": {
+                    "rules": [
+                        {
+                            "time": "08:00..09:00",
+                            "min-amount": "7.00",
+                            "max-amount": "8.00",
+                            "target-account": "Expenses:Transport:Bus",
+                        }
+                    ]
+                },
+            }
+        )
+        order = Order(
+            peer="南阳市公共交通集团有限责任公司",
+            item="公交乘车",
+            money=Decimal("7.00"),
+            pay_time=datetime(2026, 6, 14, 8, 30, 0),
+            type=Type.SEND,
+        )
+
+        result = WechatAnalyser().get_account_and_tags(order, cfg)
+
+        self.assertEqual(
+            result,
+            (
+                False,
+                "Assets:FIXME",
+                "Expenses:Transport:Bus",
                 {},
                 [],
             ),

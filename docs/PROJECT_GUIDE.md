@@ -504,6 +504,54 @@ target-account 交易目标账户
 ignore          是否忽略
 tags            标签
 separator       多值分隔符，默认逗号
+time            匹配一天内的时间段，例如 08:00..09:00
+timestamp-range 匹配完整日期/时间区间，例如 2026-06-01..2026-06-30
+min-price       最小金额，闭区间
+max-price       最大金额，闭区间
+```
+
+也可以把金额字段写成更直观的别名：
+
+```yaml
+min-amount: 7.00
+max-amount: 8.00
+```
+
+时间和金额可以组合使用。比如“2026 年 6 月内，金额在 100 到 200 之间的支付宝支出，都归到 groceries”：
+
+```yaml
+alipay:
+  rules:
+    - timestamp-range: 2026-06-01..2026-06-30
+      min-price: 100.00
+      max-price: 200.00
+      target-account: Expenses:Food:Groceries
+```
+
+再比如“每天早上 8 点到 9 点，金额在 7 到 8 元之间的微信交易，归到公交”：
+
+```yaml
+wechat:
+  rules:
+    - time: 08:00..09:00
+      min-amount: 7.00
+      max-amount: 8.00
+      target-account: Expenses:Transport:Bus
+```
+
+区间是闭区间，也就是包含起止边界。`timestamp-range` 支持：
+
+```text
+YYYY-MM-DD
+YYYY-MM-DD HH:MM
+YYYY-MM-DD HH:MM:SS
+```
+
+`time` 支持：
+
+```text
+HH:MM
+HH:MM:SS
 ```
 
 规则不是“匹配第一条就停止”。它会从上到下扫，匹配到的规则会继续覆盖账户，除非：
@@ -1039,4 +1087,3 @@ package/compiler/post_processors.py
 ```
 
 这样未来的你才不会被自己埋的字符串机关打晕。
-

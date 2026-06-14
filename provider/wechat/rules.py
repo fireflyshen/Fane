@@ -1,6 +1,7 @@
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class Rule(BaseModel):
@@ -30,13 +31,15 @@ class Rule(BaseModel):
     )
     tags: Optional[str] = Field(default=None, description="标签")
     ignore: Optional[bool] = Field(default=None, description="是否忽略当前交易")
-    min_price: Optional[float] = Field(
-        alias="min-price",
+    min_price: Optional[Decimal] = Field(
+        validation_alias=AliasChoices("min-price", "min-amount"),
+        serialization_alias="min-price",
         default=None,
         description="交易最小金额(用来根据金额判断账户)",
     )
-    max_price: Optional[float] = Field(
-        alias="max-price",
+    max_price: Optional[Decimal] = Field(
+        validation_alias=AliasChoices("max-price", "max-amount"),
+        serialization_alias="max-price",
         default=None,
         description="交易最大金额(用来根据金额判断账户)",
     )
