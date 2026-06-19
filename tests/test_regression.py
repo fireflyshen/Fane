@@ -578,6 +578,21 @@ class RobustnessTest(unittest.TestCase):
             with self.assertRaisesRegex(ProviderError, "交易状态 包含不支持的值"):
                 AliPay().translate(bill_file.name)
 
+    def test_alipay_accepts_pay_success_status(self) -> None:
+        content = (
+            "交易时间,交易分类,交易订单号,商家订单号,交易对方,商品说明,对方账号,"
+            "金额,收/支,交易状态,收/付款方式,备注\n"
+            "2026-01-01 00:00:00,测试,1,2,对方,商品,账号,1.00,支出,支付成功,余额,\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".csv") as bill_file:
+            bill_file.write(content)
+            bill_file.flush()
+
+            ir = AliPay().translate(bill_file.name)
+
+        self.assertEqual(len(ir.orders), 1)
+        self.assertEqual(ir.orders[0].meta_data["status"], DealStatus.PAY_SUCCESS.value)
+
     def test_wechat_rule_match_keeps_account_resolution_behavior(self) -> None:
         cfg = Config.model_validate(
             {

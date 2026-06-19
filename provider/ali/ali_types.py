@@ -14,6 +14,7 @@ class DealType(Enum):
 
 class DealStatus(Enum):
     SUCCESS = "交易成功"
+    PAY_SUCCESS = "支付成功"
     CLOSE = "交易关闭"
     REPAY = "还款成功"
     SHOP_PENDING = "等待确认收货"
