@@ -8,7 +8,6 @@ from package.config import Config, ForeignCreditCardRepayment
 from package.errors import ProviderError
 from provider.ali.ali_types import DealStatus
 
-
 POSTING_PATTERN_TEMPLATE = (
     r"^\s+{account}\s+([+-]?[0-9][0-9,]*(?:\.[0-9]+)?)"
     r"\s+([A-Z][A-Z0-9._'-]*)\b"
@@ -27,11 +26,12 @@ def post_process(ir: IR, config: Config | None = None) -> IR:
     for o in ir.orders:
         meta = o.meta_data or {}
         status = meta.get("status")
+        money = o.money or Decimal("0.0")
 
         if status == DealStatus.CLOSE.value and meta.get("type") == "不计收支":
             continue
 
-        if status == DealStatus.SHOP_PENDING.value:
+        if status == DealStatus.SHOP_PENDING.value and money == Decimal("0.0"):
             continue
 
         orders.append(o)
