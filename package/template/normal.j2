@@ -4,11 +4,11 @@
         {{ key }}: "{{ value }}"
     {%- endif %}
 {%- endfor %}
-    {{ "%-47s" | format(plus_account) }} {{ plus_str if plus_str else ("%10.2f %s" | format(money, currency)) }}
-    {{ "%-47s" | format(minus_account) }} {{ minus_str if minus_str else ("%10.2f %s" | format(-money, currency)) }}
+    {{ "%-55s" | format(plus_account) }} {{ plus_str if plus_str else ("%10.2f %s" | format(money, currency)) }}
+    {{ "%-55s" | format(minus_account) }} {{ minus_str if minus_str else ("%10.2f %s" | format(-money, currency)) }}
 {%- if commission_account %}
-    {{ "%-47s" | format(commission_account) }} {{ "%10.2f" | format(commission) }} {{ currency }}
-    {{ "%-47s" | format(minus_account) }} {{ "%10.2f" | format(-commission) }} {{ currency }}
+    {{ "%-55s" | format(commission_account) }} {{ "%10.2f" | format(commission) }} {{ currency }}
+    {{ "%-55s" | format(minus_account) }} {{ "%10.2f" | format(-commission) }} {{ currency }}
 {%- endif %}
 {%- if pnl_account %}
     {{ pnl_account }}

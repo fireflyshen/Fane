@@ -8,3 +8,7 @@ class ConfigError(FaneError):
 
 class ProviderError(FaneError):
     pass
+
+
+class SyncError(FaneError):
+    pass

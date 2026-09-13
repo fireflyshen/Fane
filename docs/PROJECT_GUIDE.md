@@ -18,7 +18,7 @@ Fane 的核心目标很简单：
   -> Post Processor 做来源特有的补充处理
   -> Template Strategy 渲染 Beancount
   -> RenderedEntry 结构化结果
-  -> JSON/JSONL/Beancount 输出，或直接 import 写入账本
+  -> JSON/JSONL/Beancount 输出，直接 import，或 sync 增量写入账本
 ```
 
 对应代码：
@@ -111,6 +111,7 @@ Fane/
   package/
     cmd/                          Typer CLI 命令
     config/                       YAML 配置读取和 Pydantic 配置模型
+    importing/                    sync 发现、状态、锁、路由、回滚与校验
     parser/                       根据规则解析账户的 analyser
     compiler/                     转换流水线协调器
     strategy/                     渲染策略
@@ -514,9 +515,11 @@ default-plus-account: Expenses:FIXME
 
 ```yaml
 - method: 余额宝
-  full-match: true
   method-account: Assets:MMF:Alipay:YuEBao
 ```
+
+> 兼容性说明：历史字段 `full-match` 仍可出现在配置中，但当前匹配器使用包含匹配，
+> 该字段不改变匹配语义。请使用 `fa doctor` 检查这类兼容字段。
 
 字段含义：
 

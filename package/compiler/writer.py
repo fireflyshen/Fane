@@ -1,7 +1,9 @@
 import json
+import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 from package.compiler.results import RenderedEntry
 
@@ -13,13 +15,19 @@ class JournalWriter:
         *,
         dedupe_index: str | Path | None = None,
         force: bool = False,
+        target_resolver: Callable[[RenderedEntry], Path] | None = None,
     ):
         self.journal_dir = Path(journal_dir)
         self.dedupe_index = Path(dedupe_index) if dedupe_index else (
             self.journal_dir.parent / ".fane" / "imported.jsonl"
         )
         self.force = force
+        self.target_resolver = target_resolver
         self._seen = self._load_seen()
+
+    @property
+    def seen_fingerprints(self) -> frozenset[str]:
+        return frozenset(self._seen)
 
     def write(self, entries: list[RenderedEntry]) -> dict[str, int]:
         written = 0
@@ -35,12 +43,16 @@ class JournalWriter:
                 if not entry.content.endswith("\n"):
                     output.write("\n")
                 output.write("\n")
+                output.flush()
+                os.fsync(output.fileno())
             self._record(entry, target_file)
             self._seen.add(entry.fingerprint)
             written += 1
         return {"written": written, "skipped": skipped}
 
     def target_file(self, entry: RenderedEntry) -> Path:
+        if self.target_resolver is not None:
+            return self.target_resolver(entry)
         year_dir = self.journal_dir / f"{entry.date.year}"
         if entry.kind == "income":
             return year_dir / "income.bean"
@@ -72,3 +84,5 @@ class JournalWriter:
         with open(self.dedupe_index, "a", encoding="utf-8") as index:
             index.write(json.dumps(data, ensure_ascii=False))
             index.write("\n")
+            index.flush()
+            os.fsync(index.fileno())

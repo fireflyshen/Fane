@@ -4,16 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Fane"
-version = "1.4.5"
-description = "bill-generater"
+version = "1.4.10"
+description = "Convert Alipay and WeChat bills into Beancount entries"
 readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
-    "requests",
     "typer",
     "pandas",
     "openpyxl",
-    "beautifulsoup4",
     "pydantic",
     "jinja2",
     "pyyaml"

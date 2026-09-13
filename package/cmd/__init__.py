@@ -1,4 +1,4 @@
 from .root import app
-from . import trans
+from . import setup, sync, trans
 
-__all__ = ["app", "trans"]
+__all__ = ["app", "setup", "sync", "trans"]

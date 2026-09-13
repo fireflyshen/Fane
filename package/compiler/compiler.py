@@ -33,6 +33,7 @@ class Compiler:
         self.template_strategy = template_strategy
         self.analyser = analyser
         self.source_file = ""
+        self._prepared = False
 
     def compile(self) -> None:
         logging.debug("start compile")
@@ -41,6 +42,11 @@ class Compiler:
 
     def build_result(self) -> CompiledResult:
         self.prepare_ir()
+        # The legacy strategy stores rendered text in lists. Clear those lists
+        # before every build so reusing a Compiler cannot duplicate output.
+        if isinstance(self.template_strategy, NormalStrategy):
+            self.template_strategy.expense_list.clear()
+            self.template_strategy.income_list.clear()
         self.render_orders(self.ir.orders or [])
 
         expense_data = self.distribution(self.template_strategy.expense_list)
@@ -52,8 +58,11 @@ class Compiler:
         }
 
     def prepare_ir(self) -> IR:
+        if self._prepared:
+            return self.ir
         self.ir.orders = self.resolve_accounts(self.ir.orders or [])
         self.ir = apply_post_processor(self.provider, self.ir, self.config)
+        self._prepared = True
         return self.ir
 
     def build_entries(self, source_file: str = "") -> list[RenderedEntry]:
