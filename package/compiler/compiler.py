@@ -10,8 +10,8 @@ from package.compiler.post_processors import apply_post_processor
 from package.compiler.results import RenderedEntry, fingerprint_order
 from package.config import Config
 from package.parser.analyser import Analyser
-from package.strategy.template.strategy import TemplateStrategy
 from package.strategy.template.normal import NormalStrategy
+from package.strategy.template.strategy import TemplateStrategy
 
 MONTH_PATTERN: Pattern[str] = re.compile(r"^\d{4}-(\d{2})-\d{2}")
 CompiledResult = dict[str, dict[str, list[str]]]
@@ -100,8 +100,8 @@ class Compiler:
             )
             if ignore:
                 continue
-            o.minus_account = res_minus
-            o.plus_account = res_plus
+            o.minus_account = res_minus or ""
+            o.plus_account = res_plus or ""
             o.extra_account = extra_account
             o.tags = tags
             orders.append(o)

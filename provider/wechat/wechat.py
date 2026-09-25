@@ -5,8 +5,8 @@ import pandas as pd
 
 from ir.ir import IR
 from package.errors import ProviderError
-from provider.wechat.converter import convert_to_ir
 from provider.base import TabularProvider
+from provider.wechat.converter import convert_to_ir
 from provider.wechat.wechat_types import DealType, TxType, WechatOrder
 
 REQUIRED_COLUMNS = (
@@ -39,9 +39,10 @@ class Wechat(TabularProvider[WechatOrder]):
 
     def find_header_index(self, filename: str) -> int:
         df_preview = pd.read_excel(filename, header=None, nrows=20)
-        for i, row in df_preview.iterrows():
-            if any("交易时间" in str(cell) for cell in row.values):
-                return i
+        # 用 enumerate 获取纯正的 Python int 索引
+        for idx, row in enumerate(df_preview.values):
+            if any("交易时间" in str(cell) for cell in row):
+                return idx
         return 0
 
     def parse_order(self, row: Mapping[str, Any]) -> WechatOrder | None:

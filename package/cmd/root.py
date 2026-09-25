@@ -1,7 +1,7 @@
-from importlib.metadata import PackageNotFoundError, version
-from pathlib import Path
 import re
 import sys
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
 import typer
 from typing_extensions import Annotated

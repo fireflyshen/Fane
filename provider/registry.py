@@ -7,8 +7,7 @@ from provider.wechat.wechat import Wechat
 
 
 class Provider(Protocol):
-    def translate(self, filename: str) -> IR:
-        ...
+    def translate(self, filename: str) -> IR: ...
 
 
 ProviderFactory: TypeAlias = Callable[[], Provider]

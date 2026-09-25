@@ -4,8 +4,8 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from typing import Any
 
 from package.errors import SyncError
@@ -56,7 +56,9 @@ class SyncState:
         temporary = Path(handle.name)
         try:
             with handle:
-                json.dump(self.data, handle, ensure_ascii=False, indent=2, sort_keys=True)
+                json.dump(
+                    self.data, handle, ensure_ascii=False, indent=2, sort_keys=True
+                )
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())

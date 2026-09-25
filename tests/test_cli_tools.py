@@ -15,7 +15,6 @@ from package.config import Config
 from package.parser.ali.alipay import AlipayAnalyser
 from package.strategy.template.normal import NormalStrategy
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -58,7 +57,9 @@ class CliToolTest(unittest.TestCase):
         self.assertNotEqual(duplicate.returncode, 0)
         self.assertIn("未覆盖", duplicate.stderr)
 
-    def test_doctor_warns_about_unknown_fields_without_breaking_compatibility(self) -> None:
+    def test_doctor_warns_about_unknown_fields_without_breaking_compatibility(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "config.yaml"
             config.write_text(

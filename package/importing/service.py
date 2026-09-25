@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import glob as glob_module
+import subprocess
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
-import glob as glob_module
 from pathlib import Path
-import subprocess
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -55,11 +55,15 @@ class SyncService:
         self.job = job
         self.journal_dir = Path(job.journal_dir).expanduser()
         state_root = self.journal_dir.parent / ".fane"
-        self.state_file = Path(job.state_file).expanduser() if job.state_file else (
-            state_root / "sync-state.json"
+        self.state_file = (
+            Path(job.state_file).expanduser()
+            if job.state_file
+            else (state_root / "sync-state.json")
         )
-        self.lock_file = Path(job.lock_file).expanduser() if job.lock_file else (
-            state_root / "sync.lock"
+        self.lock_file = (
+            Path(job.lock_file).expanduser()
+            if job.lock_file
+            else (state_root / "sync.lock")
         )
         self.dedupe_index = (
             Path(job.dedupe_index).expanduser()
@@ -91,9 +95,7 @@ class SyncService:
                 else require_classified
             )
             if strict and report.unmatched:
-                raise SyncError(
-                    f"拒绝同步: 仍有 {report.unmatched} 条交易使用默认账户"
-                )
+                raise SyncError(f"拒绝同步: 仍有 {report.unmatched} 条交易使用默认账户")
 
             writer = JournalWriter(
                 self.journal_dir,
@@ -103,7 +105,9 @@ class SyncService:
             planned = self._planned_entries(entries, writer)
             report.skipped = len(entries) - len(planned)
             report.targets = dict(
-                sorted(Counter(str(writer.target_file(item)) for item in planned).items())
+                sorted(
+                    Counter(str(writer.target_file(item)) for item in planned).items()
+                )
             )
             if dry_run:
                 report.status = "dry-run"
@@ -122,9 +126,7 @@ class SyncService:
                 report.written = result["written"]
                 report.skipped = result["skipped"]
                 self._run_validators()
-                completed_at = datetime.now().astimezone().isoformat(
-                    timespec="seconds"
-                )
+                completed_at = datetime.now().astimezone().isoformat(timespec="seconds")
                 for key, path, digest in changed:
                     stat = path.stat()
                     state.update_source(
@@ -172,9 +174,7 @@ class SyncService:
                 continue
             for path in paths:
                 digest = sha256_file(path)
-                key = (
-                    f"{self.job_name}:{source.id}:{source.provider}:{path.resolve()}"
-                )
+                key = f"{self.job_name}:{source.id}:{source.provider}:{path.resolve()}"
                 if (
                     self.job.change_detection == "sha256"
                     and not rescan

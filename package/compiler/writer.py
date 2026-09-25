@@ -18,8 +18,10 @@ class JournalWriter:
         target_resolver: Callable[[RenderedEntry], Path] | None = None,
     ):
         self.journal_dir = Path(journal_dir)
-        self.dedupe_index = Path(dedupe_index) if dedupe_index else (
-            self.journal_dir.parent / ".fane" / "imported.jsonl"
+        self.dedupe_index = (
+            Path(dedupe_index)
+            if dedupe_index
+            else (self.journal_dir.parent / ".fane" / "imported.jsonl")
         )
         self.force = force
         self.target_resolver = target_resolver

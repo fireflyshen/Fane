@@ -6,7 +6,6 @@ from typing_extensions import Annotated
 from package.cmd import root
 from package.diagnostics import diagnose_config
 
-
 DEFAULT_CONFIG = """# Fane 最小配置；未匹配交易会进入 FIXME 账户，便于后续补规则。
 title: Fane
 default-minus-account: Assets:FIXME
@@ -60,8 +59,6 @@ def doctor(
         typer.echo(f"[警告] {message}")
     for message in report.errors:
         typer.echo(f"[错误] {message}", err=True)
-    typer.echo(
-        f"检查完成: {len(report.errors)} 个错误, {len(report.warnings)} 个警告"
-    )
+    typer.echo(f"检查完成: {len(report.errors)} 个错误, {len(report.warnings)} 个警告")
     if report.errors or (strict and report.warnings):
         raise typer.Exit(code=1)

@@ -2,14 +2,12 @@ from functools import lru_cache
 
 from jinja2 import Template
 
-from ir.ir import Order, Account
+from ir.ir import Account, Order
 from package.strategy.template.strategy import TemplateStrategy
-from package.template.template import NormalOrder
-from package.template.template import get_template
+from package.template.template import NormalOrder, get_template
 
 
 class NormalStrategy(TemplateStrategy):
-
     def __init__(self) -> None:
         self.expense_list: list[str] = []
         self.income_list: list[str] = []

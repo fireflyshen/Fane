@@ -10,8 +10,7 @@ from package.parser.wechat.wechat import WechatAnalyser
 class Analyser(Protocol):
     def get_account_and_tags(
         self, order: Order, config: Config
-    ) -> AccountResolutionTuple:
-        ...
+    ) -> AccountResolutionTuple: ...
 
 
 ANALYSERS = {

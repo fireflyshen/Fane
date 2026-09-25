@@ -61,12 +61,12 @@ class AliPay(TabularProvider[AliOrder]):
             self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
             for _, row in df.iterrows():
                 yield cast(dict[str, Any], row.to_dict())
-        except FileNotFoundError as fe:
+        except FileNotFoundError:
             logging.error("文件未找到")
             raise
         except ProviderError:
             raise
-        except Exception as e:
+        except Exception:
             logging.exception("发生未知错误")
             raise
 

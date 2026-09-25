@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
 import json
+from datetime import date
 
 import typer
 from typing_extensions import Annotated
@@ -9,6 +9,7 @@ from typing_extensions import Annotated
 from package.config import get_config_model
 from package.errors import FaneError, SyncError
 from package.importing import SyncReport, SyncService
+
 from .root import app
 
 
@@ -42,7 +43,9 @@ def sync_job(
     job_name: Annotated[str, typer.Argument(help="config.yaml 中 jobs 下的任务名")],
     run_date: Annotated[
         str,
-        typer.Option("--date", help="处理日期，格式 YYYY-MM-DD；默认使用任务时区的今天"),
+        typer.Option(
+            "--date", help="处理日期，格式 YYYY-MM-DD；默认使用任务时区的今天"
+        ),
     ] = "",
     dry_run: Annotated[
         bool,

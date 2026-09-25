@@ -13,6 +13,7 @@ from package.errors import FaneError
 from package.parser.analyser import create_analyser
 from package.strategy.template.normal import NormalStrategy
 from provider.registry import create_provider, supported_provider_names
+
 from .root import app
 
 
@@ -146,7 +147,8 @@ def inspect_bill(
         months = summary["months"]
         if isinstance(months, dict):
             typer.echo(
-                "月份: " + ", ".join(f"{month}={count}" for month, count in months.items())
+                "月份: "
+                + ", ".join(f"{month}={count}" for month, count in months.items())
             )
     except FaneError as error:
         typer.echo(f"检查出错: {error}", err=True)
@@ -186,7 +188,9 @@ def import_bill(
     ] = False,
     force: Annotated[
         bool,
-        typer.Option("--force", help="write entries even if fingerprints already exist"),
+        typer.Option(
+            "--force", help="write entries even if fingerprints already exist"
+        ),
     ] = False,
     require_classified: Annotated[
         bool,

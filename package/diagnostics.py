@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
-import re
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -19,10 +19,11 @@ from package.config.config import (
 )
 from package.config.init import load_config
 from package.errors import ConfigError
-from provider.ali.rules import ALi, Rule as AliRule
-from provider.wechat.rules import Rule as WechatRule, WeChat
+from provider.ali.rules import ALi
+from provider.ali.rules import Rule as AliRule
 from provider.registry import supported_provider_names
-
+from provider.wechat.rules import Rule as WechatRule
+from provider.wechat.rules import WeChat
 
 ACCOUNT_PATTERN = re.compile(r"^[A-Z][A-Za-z0-9-]*(?::[A-Z][A-Za-z0-9-]*)+$")
 COMMON_RANGE_FIELDS = {
@@ -163,15 +164,11 @@ def _check_jobs(report: DiagnosticReport, jobs: Any) -> None:
         if isinstance(validators, list):
             for index, validator in enumerate(validators):
                 validator_location = f"{location}.validators[{index}]"
-                _warn_unknown(
-                    report, validator, ValidatorConfig, validator_location
-                )
+                _warn_unknown(report, validator, ValidatorConfig, validator_location)
                 if isinstance(validator, dict) and validator.get("cwd"):
                     cwd = Path(str(validator["cwd"])).expanduser()
                     if not cwd.is_dir():
-                        report.warnings.append(
-                            f"{validator_location}.cwd: 目录不存在"
-                        )
+                        report.warnings.append(f"{validator_location}.cwd: 目录不存在")
 
 
 def diagnose_config(config_path: str | Path) -> DiagnosticReport:
@@ -208,12 +205,16 @@ def diagnose_config(config_path: str | Path) -> DiagnosticReport:
 
     for field_name in ("default-minus-account", "default-plus-account"):
         if not raw.get(field_name):
-            report.warnings.append(f"config.{field_name}: 未配置，未匹配交易可能无法入账")
+            report.warnings.append(
+                f"config.{field_name}: 未配置，未匹配交易可能无法入账"
+            )
 
     for field_name in ACCOUNT_FIELDS:
         account = raw.get(field_name)
         if account and not ACCOUNT_PATTERN.fullmatch(str(account)):
-            report.warnings.append(f"config.{field_name}: 账户名格式可能不符合 Beancount")
+            report.warnings.append(
+                f"config.{field_name}: 账户名格式可能不符合 Beancount"
+            )
 
     currency = raw.get("default-currency")
     if not currency:
