@@ -1,0 +1,407 @@
+title: Bills
+default-minus-account: Assets:FIXME
+default-plus-account: Expenses:FIXME
+default-currency: CNY
+
+alipay:
+  rules:
+    # 退款会在第一条匹配规则后立即返回，因此必须同时指定两侧账户。
+    - peer: 中国移动
+      item: 退款
+      method: 工商银行信用卡(8393)
+      method-account: Liabilities:Card:ICBC-8393
+      target-account: Expenses:Communication:Domestic
+
+    # 未识别收入保留显式兜底；后续精确规则可以覆盖。
+    - type: 收入
+      method-account: Assets:Cash:Alipay
+      target-account: Income:FIXME
+
+    # 支付方式：宽规则在前，精确业务规则在后覆盖。
+    - method: 余额
+      method-account: Assets:Cash:Alipay
+
+    - method: 余额宝
+      method-account: Assets:Investments:YuEBao
+
+    - method: 工商银行信用卡(8393)
+      method-account: Liabilities:Card:ICBC-8393
+
+    - method: 中信银行信用卡(9177)
+      method-account: Liabilities:Card:CNCB-9177
+
+    - method: 工商银行储蓄卡(4931)
+      method-account: Assets:Bank:ICBC-4931
+
+    - method: 中信银行储蓄卡(4668)
+      method-account: Assets:Bank:CNCB-4668
+
+    # 通信。
+    - peer: 中国移动
+      target-account: Expenses:Communication:Domestic
+
+    - item: 电话卡
+      target-account: Expenses:Communication:Domestic
+
+    - item: 全国移动流量
+      target-account: Expenses:Communication:Domestic
+
+    - peer: 沨哥网络
+      target-account: Expenses:Communication:International
+
+    - item: 保号
+      target-account: Expenses:Communication:Domestic
+
+    # 个人与家庭。
+    - peer: 南阳市卧龙区尚艺美发店
+      target-account: Expenses:Personal:Haircut
+
+    - peer: 南阳市卧龙区雨飞美容美发店（个体工商户）
+      target-account: Expenses:Personal:Haircut
+
+    - peer: 南阳市卧龙区梅溪路捷森文具商行
+      target-account: Expenses:Personal:Stationery
+
+    - item: 卡西欧
+      target-account: Expenses:Personal:Accessories
+
+    - item: 止汗露|香体滚珠|沐浴露
+      separator: "|"
+      target-account: Expenses:Personal:Toiletries
+
+    - item: 耳塞
+      target-account: Expenses:Personal:SleepAids
+
+    - peer: 国网河南省电力公司
+      target-account: Expenses:Family:Electricity
+
+    - peer: 秀玲
+      item: 电动车
+      target-account: Expenses:Transport:Vehicle
+
+    # 食品。
+    - peer: 淘宝闪购
+      target-account: Expenses:Food:Meals
+
+    - peer: 零食很忙|零食有鸣|成都零食有鸣商业管理有限公司|湖南鸣鸣很忙商业连锁股份有限公司|怡家|美宜佳
+      separator: "|"
+      target-account: Expenses:Food:Snacks
+
+    - peer: 南阳市万德隆商贸有限责任公司|南阳市仲景路三色鸽六十三店|面条
+      separator: "|"
+      target-account: Expenses:Food:Groceries
+
+    - peer: 占红烟酒副食店
+      target-account: Expenses:Household:Water
+
+    - item: 咖啡|路易波士茶|水果茶|意大利面|韭菜
+      separator: "|"
+      target-account: Expenses:Food:Groceries
+
+    # 交通与临时设备租赁。
+    - peer: 滴滴出行
+      target-account: Expenses:Transport:Taxi
+
+    - peer: 南阳市公共交通集团有限责任公司
+      target-account: Expenses:Transport:Transit
+
+    - peer: 哈啰骑行|松果出行
+      separator: "|"
+      target-account: Expenses:Transport:Bike
+
+    - peer: 美团充电|小电
+      separator: "|"
+      target-account: Expenses:Services:PowerBank
+
+    # 电子产品、健康与家居。
+    - peer: 公牛插座旗舰店|颂余旗舰店
+      separator: "|"
+      target-account: Expenses:Electronics:Accessories
+
+    - peer: ic**店
+      target-account: Expenses:Household:Supplies
+
+    - item: 随身药盒|药盒
+      separator: "|"
+      target-account: Expenses:Health:Medication
+
+    - item: 屏幕清洁|数据线|充电器|手机壳|手机膜|电话卡收纳槽
+      separator: "|"
+      target-account: Expenses:Electronics:Accessories
+
+    - item: 电池
+      target-account: Expenses:Household:Supplies
+
+    - item: 维生素C|维生素D|维c|辅酶q10
+      separator: "|"
+      target-account: Expenses:Health:Supplements
+
+    - item: 蛋白粉|酵母蛋白
+      separator: "|"
+      target-account: Expenses:Health:Supplements
+
+    - item: 冰箱活性炭除臭
+      target-account: Expenses:Household:Supplies
+
+    - item: 香薰|香氛片
+      separator: "|"
+      target-account: Expenses:Household:Fragrance
+
+    - item: 冷萃杯
+      target-account: Expenses:Household:Supplies
+
+    - item: 员工离岗文档资料模板
+      target-account: Expenses:Education:Professional
+
+    - peer: 德信堂大药房
+      target-account: Expenses:Health:Medication
+
+    - peer: 佳红相室|河南**章
+      separator: "|"
+      target-account: Expenses:Services:Administrative
+
+    # 技术产品与服务。
+    - peer: iCloud 由云上贵州运营
+      target-account: Expenses:Technology:ICloud
+
+    - peer: 阿里云
+      item: 关系型数据库RDS
+      target-account: Expenses:Technology:Cloud
+
+    - peer: 阿里云
+      item: 云服务器ECS
+      target-account: Expenses:Technology:Cloud
+
+    - peer: DMIT INC.
+      target-account: Expenses:Technology:Cloud
+
+    - peer: 阿里云
+      item: 阿里云服务购买
+      target-account: Expenses:Technology:Cloud
+
+    - item: Jetbrains Ai Pro|JetBrains AI Pro
+      separator: "|"
+      target-account: Expenses:Technology:DeveloperTools
+
+    - item: Berkeley Mono
+      target-account: Expenses:Technology:DeveloperTools
+
+    - item: IDEA|JetBrains
+      separator: "|"
+      target-account: Expenses:Technology:DeveloperTools
+
+    - item: Apple Gift Card
+      target-account: Expenses:Technology:GiftCards
+
+    - peer: App Store &amp; Apple Music
+      target-account: Expenses:Technology:Software
+
+    - peer: kunlejiushui555
+      target-account: Expenses:Entertainment:Music
+
+    - peer: 上海立七数码科技有限公司
+      target-account: Expenses:Technology:Software
+
+    - peer: mayproxy|湖南安谨科技有限公司|郸城县靓葡商贸有限公司|苏州创旭嘉网络科技有限公司|广州光琰科技有限公司|苏州浩斯利信息科技有限公司|杭州恒座网络科技有限公司|苏州创欣博信息科技有限公司|安徽佑隆建筑劳务有限公司|心语
+      separator: "|"
+      target-account: Expenses:Technology:Proxy
+
+    # 余额宝收益与账户间转账。
+    - type: 不计收支
+      item: 收益发放
+      method-account: Income:Interest:YuEBao
+      target-account: Assets:Investments:YuEBao
+
+    - type: 不计收支
+      item: 信用卡还款
+      method: 余额宝
+      method-account: Assets:Investments:YuEBao
+      target-account: Liabilities:Card:ICBC-8393
+
+    - type: 不计收支
+      item: 余额宝-转出到银行卡
+      method: 中信银行储蓄卡(4668)
+      method-account: Assets:Investments:YuEBao
+      target-account: Assets:Bank:CNCB-4668
+
+    - type: 不计收支
+      item: 余额宝-转出到银行卡
+      method: 工商银行储蓄卡(4931)
+      method-account: Assets:Investments:YuEBao
+      target-account: Assets:Bank:ICBC-4931
+
+    - type: 不计收支
+      item: 余额宝-单次转入
+      method: 中信银行储蓄卡(4668)
+      method-account: Assets:Bank:CNCB-4668
+      target-account: Assets:Investments:YuEBao
+
+    - type: 不计收支
+      item: 余额宝-单次转入
+      method: 工商银行储蓄卡(4931)
+      method-account: Assets:Bank:ICBC-4931
+      target-account: Assets:Investments:YuEBao
+
+    - type: 不计收支
+      item: 余额宝-自动转入
+      method-account: Assets:Cash:Alipay
+      target-account: Assets:Investments:YuEBao
+
+    - type: 不计收支
+      peer: 沈博
+      item: 余额宝-转出到余额
+      method-account: Assets:Investments:YuEBao
+      target-account: Assets:Cash:Alipay
+
+    - type: 不计收支
+      peer: 中信银行
+      item: 提现
+      method-account: Assets:Cash:Alipay
+      target-account: Assets:Bank:CNCB-4668
+
+    - type: 不计收支
+      peer: "*博"
+      item: 充值-普通充值
+      method-account: Assets:Bank:CNCB-4668
+      target-account: Assets:Cash:Alipay
+
+wechat:
+  rules:
+    # 转账和红包既可能是收入，也可能是支出；先放入收入兜底，再由具体对手覆盖。
+    - tx_type: 转账|微信红包
+      separator: "|"
+      method-account: Assets:Cash:WeChat
+      target-account: Income:FIXME
+
+    # 支付方式。
+    - method: 零钱
+      method-account: Assets:Cash:WeChat
+
+    - method: 工商银行信用卡(8393)
+      method-account: Liabilities:Card:ICBC-8393
+
+    - method: 中信银行信用卡(9177)
+      method-account: Liabilities:Card:CNCB-9177
+
+    - method: 工商银行储蓄卡(4931)
+      method-account: Assets:Bank:ICBC-4931
+
+    # 通信、个人服务与物流。
+    - peer: 中国移动|手机充值-中国移动
+      separator: "|"
+      target-account: Expenses:Communication:Domestic
+
+    - peer: 南阳市卧龙区尚艺美发店|南阳市卧龙区雨飞美容美发店（个体工商户）
+      separator: "|"
+      target-account: Expenses:Personal:Haircut
+
+    - peer: 雨蝶
+      target-account: Expenses:Personal:Toiletries
+
+    - peer: 顺丰速运
+      target-account: Expenses:Services:Logistics
+
+    - peer: 芋道源码
+      target-account: Expenses:Education:Professional
+
+    - peer: 美团充电|小电
+      separator: "|"
+      target-account: Expenses:Services:PowerBank
+
+    # 食品。
+    - peer: 零食很忙|零食有鸣|湖南鸣鸣很忙商业连锁股份有限公司|怡家
+      separator: "|"
+      target-account: Expenses:Food:Snacks
+
+    - peer: 南阳市万德隆商贸有限责任公司
+      target-account: Expenses:Food:Groceries
+
+    # 交通。
+    - peer: 滴滴出行|李铁15538782533
+      separator: "|"
+      target-account: Expenses:Transport:Taxi
+
+    - peer: 南阳市公共交通集团有限责任公司
+      target-account: Expenses:Transport:Transit
+
+    - peer: 哈啰骑行|松果出行
+      separator: "|"
+      target-account: Expenses:Transport:Bike
+
+    - peer: 美团
+      item: 先骑后付
+      target-account: Expenses:Transport:Bike
+
+    # 技术服务。
+    - peer: iCloud 由云上贵州运营
+      target-account: Expenses:Technology:ICloud
+
+    - peer: 郑州庖丁科技有限公司
+      target-account: Expenses:Technology:DeveloperTools
+
+    - peer: 湖南安谨科技有限公司|郸城县靓葡商贸有限公司|苏州创旭嘉网络科技有限公司|甩吕商贸|mayproxy|心语|叶姬商贸|夏邑县赫荆百货商行
+      separator: "|"
+      target-account: Expenses:Technology:Proxy
+
+    # 明确的转账对手。
+    - tx_type: 转账
+      peer: Ma妈～
+      method: /
+      method-account: Assets:Cash:WeChat
+      target-account: Income:Family
+
+    - tx_type: 微信红包
+      peer: 宋捷
+      method: /
+      method-account: Assets:Cash:WeChat
+      target-account: Assets:Receivable:SongJie
+
+    - tx_type: 转账
+      peer: 宋捷 (你好？)
+      method: 零钱
+      method-account: Assets:Cash:WeChat
+      target-account: Expenses:Transport:Taxi
+
+    - tx_type: 转账
+      peer: 方寅昌 (浩瀚fyc98)
+      method: 工商银行储蓄卡(4931)
+      method-account: Assets:Bank:ICBC-4931
+      target-account: Expenses:Social:Wedding
+
+    - tx_type: 转账
+      peer: 妈
+      method: 零钱
+      method-account: Assets:Cash:WeChat
+      target-account: Expenses:Family:Support
+
+    - tx_type: 转账
+      peer: 辰星＆心语
+      method: 零钱
+      method-account: Assets:Cash:WeChat
+      target-account: Expenses:Family:Support
+
+    - tx_type: 零钱充值
+      method: 中信银行储蓄卡(4668)
+      method-account: Assets:Bank:CNCB-4668
+      target-account: Assets:Cash:WeChat
+
+    - tx_type: 零钱充值
+      method: 工商银行储蓄卡(4931)
+      method-account: Assets:Bank:ICBC-4931
+      target-account: Assets:Cash:WeChat
+
+    # 微信信用卡还款可能包含手续费，YAML 无法可靠拆分，保留人工复核。
+    - tx_type: 信用卡还款
+      peer: 工商银行信用卡还款
+      method: 零钱
+      method-account: Assets:Cash:WeChat
+      target-account: Expenses:FIXME
+
+foreign-credit-card-repayments:
+  - trigger-minus-account: Assets:Investments:YuEBao
+    trigger-plus-account: Assets:Bank:ICBC-4931
+    liability-account: Liabilities:Card:ICBC-5788
+    ledger-file: /Users/enmu/nexus/flowspace/Bills/main.bean
+    currency: USD
+    peer: 中国工商银行
+    item: 信用卡提前还款
