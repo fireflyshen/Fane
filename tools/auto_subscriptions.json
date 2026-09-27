@@ -1,0 +1,47 @@
+[
+  {
+    "id": "google-one-pro",
+    "status": "active",
+    "type": "expense",
+    "interval": "monthly",
+    "payee": "Google",
+    "narration": "Google One Pro",
+    "debit_account": "Expenses:Technology:GoogleOne",
+    "credit_account": "Liabilities:Card:ICBC-5788",
+    "amount": "22.10",
+    "currency": "USD",
+    "billing_day": 13,
+    "start_date": "2026-07-01",
+    "end_date": null
+  },
+  {
+    "id": "openai-codex",
+    "status": "active",
+    "type": "expense",
+    "interval": "monthly",
+    "payee": "OpenAI",
+    "narration": "ChatGPT CodeX",
+    "debit_account": "Expenses:Technology:Codex",
+    "credit_account": "Assets:StoredValue:Apple",
+    "amount": "21.34",
+    "currency": "USD",
+    "billing_day": 5,
+    "start_date": "2026-07-01",
+    "end_date": null
+  },
+  {
+    "id": "apple-gift-card-topup",
+    "status": "active",
+    "type": "transfer",
+    "interval": "monthly",
+    "payee": "Apple",
+    "narration": "Apple Gift Card",
+    "debit_account": "Assets:StoredValue:Apple",
+    "credit_account": "Liabilities:Card:ICBC-5788",
+    "amount": "22.00",
+    "currency": "USD",
+    "billing_day": 3,
+    "start_date": "2026-07-01",
+    "end_date": null
+  }
+]
