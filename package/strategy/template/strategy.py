@@ -1,19 +1,5 @@
-from abc import ABC, abstractmethod
+"""Compatibility alias; implementation lives in fane.infrastructure.rendering.strategy."""
+import sys
+from importlib import import_module
 
-from jinja2 import Template
-
-from ir.ir import Order
-
-
-class TemplateStrategy(ABC):
-    expense_list: list[str]
-    income_list: list[str]
-
-    @abstractmethod
-    def template_parser(self, order: Order) -> None:
-        pass
-
-    @classmethod
-    @abstractmethod
-    def get_template_content(cls, template_name: str) -> Template:
-        pass
+sys.modules[__name__] = import_module("fane.infrastructure.rendering.strategy")

@@ -1,29 +1,10 @@
-from collections.abc import Callable
-from typing import Protocol, TypeAlias
+"""Legacy provider registry facade; register new sources in fane.bootstrap."""
+from fane.bootstrap import PROVIDER_SPECS, supported_provider_names
+from fane.core.ports import Provider, ProviderFactory
 
-from ir.ir import IR
-from provider.ali.alipay import AliPay
-from provider.wechat.wechat import Wechat
-
-
-class Provider(Protocol):
-    def translate(self, filename: str) -> IR: ...
-
-
-ProviderFactory: TypeAlias = Callable[[], Provider]
-
-PROVIDERS: dict[str, ProviderFactory] = {
-    "alipay": AliPay,
-    "wechat": Wechat,
-}
+PROVIDERS = {name: spec.reader for name, spec in PROVIDER_SPECS.items()}
 
 
 def create_provider(provider_name: str) -> Provider | None:
-    provider_factory = PROVIDERS.get(provider_name)
-    if provider_factory is None:
-        return None
-    return provider_factory()
-
-
-def supported_provider_names() -> tuple[str, ...]:
-    return tuple(PROVIDERS)
+    factory = PROVIDERS.get(provider_name)
+    return factory() if factory else None

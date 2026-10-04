@@ -1,0 +1,17 @@
+[
+  {
+    "id": "example-service",
+    "status": "paused",
+    "type": "expense",
+    "interval": "monthly",
+    "payee": "示例服务",
+    "narration": "月度订阅",
+    "debit_account": "Expenses:Subscriptions",
+    "credit_account": "Assets:Cash",
+    "amount": "10.00",
+    "currency": "CNY",
+    "billing_day": 5,
+    "start_date": "2026-01-01",
+    "end_date": null
+  }
+]

@@ -1,37 +1,5 @@
-from ir.ir import Order
-from package.config import Config
-from package.parser.rule_resolver import (
-    AccountResolutionTuple,
-    MatchField,
-    RuleAccountResolver,
-)
+"""Compatibility alias; implementation lives in fane.application.classification.wechat."""
+import sys
+from importlib import import_module
 
-WECHAT_RESOLVER = RuleAccountResolver(
-    match_fields=(
-        MatchField("peer", "peer"),
-        MatchField("tx_type", "tx_type_original"),
-        MatchField("item", "item"),
-        MatchField("method", "method"),
-        MatchField("category", "category"),
-    )
-)
-
-
-class WechatAnalyser:
-    def get_account_and_tags(self, o: Order, cfg: Config) -> AccountResolutionTuple:
-
-        # 如果没有配置规则，返回事先配置的默认配置
-        if cfg.wechat is None or cfg.wechat.rules is None or len(cfg.wechat.rules) == 0:
-            return (
-                False,
-                cfg.default_minus_account,
-                cfg.default_plus_account,
-                {},
-                [],
-            )
-        return WECHAT_RESOLVER.resolve(
-            o,
-            cfg.wechat.rules,
-            cfg.default_minus_account,
-            cfg.default_plus_account,
-        ).as_tuple()
+sys.modules[__name__] = import_module("fane.application.classification.wechat")

@@ -1,3 +1,5 @@
-from provider.wechat.wechat_types import DealType, TxType, WechatOrder
+"""Compatibility alias; implementation lives in fane.providers.wechat.types."""
+import sys
+from importlib import import_module
 
-__all__ = ["DealType", "TxType", "WechatOrder"]
+sys.modules[__name__] = import_module("fane.providers.wechat.types")

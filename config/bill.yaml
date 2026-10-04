@@ -75,6 +75,9 @@ alipay:
     - peer: 国网河南省电力公司
       target-account: Expenses:Family:Electricity
 
+    - peer: 北控南阳水务集团有限公司
+      target-account: Expenses:Household:Water
+
     - peer: 秀玲
       item: 电动车
       target-account: Expenses:Transport:Vehicle
@@ -401,7 +404,75 @@ foreign-credit-card-repayments:
   - trigger-minus-account: Assets:Investments:YuEBao
     trigger-plus-account: Assets:Bank:ICBC-4931
     liability-account: Liabilities:Card:ICBC-5788
-    ledger-file: /Users/enmu/nexus/flowspace/Bills/main.bean
+    ledger-file: ../../Bills/main.bean
     currency: USD
     peer: 中国工商银行
     item: 信用卡提前还款
+
+ledger:
+  file: ../../Bills/main.bean
+  policy:
+    required-currencies:
+    - CNY
+    - GBP
+    - USD
+    required-metadata:
+      Assets:Bank:
+      - account_type
+      - institution
+      Assets:Deposit:
+      - account_type
+      - institution
+      Assets:Cash:Alipay:
+      - liquidity
+      - platform
+      Assets:Cash:WeChat:
+      - liquidity
+      - platform
+      Assets:StoredValue:
+      - account_type
+      - platform
+      Assets:Investments:
+      - product
+      Assets:Receivable:
+      - counterparty
+      Liabilities:Card:
+      - account_type
+      - institution
+      - last4
+      Liabilities:Credit:
+      - platform
+      - product
+      Liabilities:Accrued:
+      - domain
+      - recognition
+      Income:Salary:
+      - income_type
+      Income:Family:
+      - income_type
+      Income:Rebates:
+      - income_type
+      Expenses:
+      - flux_label
+    disallowed-segments:
+    - fix
+    - fixme
+    - general
+    - other
+    - localservices
+    allowed-accounts:
+    - Expenses:FIXME
+  assertions:
+    output-dir: assertion/data
+    index: assertion/index.bean
+    ignored-prefixes:
+    - Assets:Prepaid
+    - Assets:Clearing
+    - Liabilities:Accrued
+    precision: 2
+  snapshot:
+    accrual-offset-prefixes:
+      - 'Liabilities:Accrued:'
+      - 'Liabilities:AccruedExpenses:'
+      - 'Assets:Prepaid:'
+      - 'Assets:PrepaidExpenses:'

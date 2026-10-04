@@ -1,94 +1,60 @@
 # Fane
 
-Fane 是一个本地运行的账单转换器：读取支付宝 CSV、微信 XLSX，按照 YAML
-规则映射 Beancount 账户，并输出或直接写入月度账本。
+Fane 把支付宝 CSV、微信 XLSX 账单转换成 Beancount 分录，并提供导入、增量同步、分类决策应用、月度订阅生成和账本管理。统一终端入口是 `fa`。
 
-它不会替代 Beancount，也不会联网同步账单。它解决的是“第三方账单到规范分录”
-这一步。
+## 先看哪篇文档
 
-## 兼容性
+| 你的问题 | 文档 |
+| --- | --- |
+| 怎么安装、怎么完成一次记账、外部工具怎么调用？ | [使用手册](docs/USER_GUIDE.md) |
+| 每个功能的命令、所有参数和默认值是什么？ | [完整命令参考](docs/COMMANDS.md) |
+| YAML、分类规则、订阅 JSON 怎么写？ | [配置参考](docs/CONFIG_REFERENCE.md) |
+| 每个目录是什么、为什么分层、tools 和 j2 在哪里？ | [项目目录与架构](docs/PROJECT_GUIDE.md) |
+| 服务器 n8n 怎样接入、去重、验证和回滚？ | [n8n 财务流程](docs/N8N_GUIDE.md) |
 
-现有命令和默认行为保持不变：
+## 安装与开始使用
 
-```bash
-fa --config ~/.flow/config.yaml trans --provider alipay --source bill.csv
-fa --config ~/.flow/config.yaml import --provider wechat --source bill.xlsx \
-  --journal-dir ~/.flow/account/journal
-```
+需要 Python 3.11 或更新版本；当前同步锁使用 POSIX 接口，运行环境为 macOS/Linux。在本仓库目录执行：
 
-- `trans` 默认仍输出原有的按支出/收入和月份分组的 JSON。
-- `import` 默认仍将支出写入 `YEAR/YEAR-MM.bean`，收入写入
-  `YEAR/income.bean`。
-- 默认配置仍是 `~/.flow/config.yaml`。
-- 原有 YAML 字段继续接受；`doctor` 只报告兼容性警告，不会修改配置。
-
-## 安装
-
-在源码目录创建虚拟环境并安装：
-
-```bash
+```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -e .
-.venv/bin/fa --version
+source .venv/bin/activate
+python -m pip install -e .
+fa --version
+
+# 创建独立的本地配置，避免覆盖仓库已有的个人规则。
+fa --config config/bill.local.yaml config init
+fa --config config/bill.local.yaml config check
+fa providers list
+fa --config config/bill.local.yaml bill inspect --provider wechat --source /path/to/wechat.xlsx
+fa --config config/bill.local.yaml bill convert --provider wechat --source /path/to/wechat.xlsx
 ```
 
-也可以继续直接运行源码入口：
+也可使用 `python -m fane` 或 `python main.py`，后面的命令和参数完全相同。所有动作支持 `--help`，例如 `fa bill import --help`。全局 `--config` 必须放在命令组之前，也可用环境变量 `FANE_CONFIG`。
 
-```bash
-.venv/bin/python main.py --help
+## 功能入口
+
+```text
+fa config         init / check
+fa providers      list
+fa bill           convert / inspect / import / jobs / sync
+fa classify       schema / extract / apply
+fa subscriptions  init / check / generate
+fa template       list / show / fields / check
+fa ledger         validate / assertions / export / serve / publish
 ```
 
-## 五分钟开始
+新命令的导入、同步、分类应用、订阅生成和余额断言默认预览，加 `--write` 才修改账本。`config init`、`subscriptions init`、显式输出文件会直接创建文件；`ledger publish` 会直接发布到远程。
 
-创建最小配置：
+`tools/` 中的功能已经接入 `fa classify` 和 `fa subscriptions`，不需要下载源码里的脚本才能使用。它们可以被终端、自动化任务或外部 AI 工具通过进程调用；项目没有内置 AI 模型调用或 MCP 服务。
 
-```bash
-fa init
-fa doctor
+模板没有被删除：内置文件在 [`fane/infrastructure/rendering/normal.j2`](fane/infrastructure/rendering/normal.j2)，随安装包分发。`fa template show` 可以查看，`fa template show --output custom.j2` 可以导出，再通过 `bill convert --template custom.j2` 使用。
+
+## 开发验证
+
+```sh
+python -m unittest discover -s tests -v
+python -m compileall -q fane ir package provider tools tests
 ```
 
-只读检查账单，不写文件：
-
-```bash
-fa inspect --provider alipay --source bill.csv
-```
-
-预览 Beancount：
-
-```bash
-fa trans --provider alipay --source bill.csv --format beancount
-```
-
-先 dry-run，再正式导入：
-
-```bash
-fa import --provider alipay --source bill.csv \
-  --journal-dir ~/.flow/account/journal --dry-run
-
-fa import --provider alipay --source bill.csv \
-  --journal-dir ~/.flow/account/journal --summary --require-classified
-```
-
-已经有每日账单脚本时，可在配置中增加 `jobs`，让 Fane 自己完成多来源增量导入：
-
-```bash
-fa --config ~/.flow/bill.yaml sync daily --dry-run
-fa --config ~/.flow/bill.yaml sync daily
-```
-
-`sync` 提供文件变化检测、交易指纹去重、按交易日期路由、并发锁、失败回滚和账本校验；
-完整配置及从现有 Bash 脚本迁移的方法见功能使用手册第 9 节。
-
-完整命令、规则字段、输出格式、去重与兼容说明见
-[功能使用手册](docs/USER_GUIDE.md)。项目内部架构见
-[项目导览](docs/PROJECT_GUIDE.md)。
-
-## 验证
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m compileall -q ir package provider tests
-```
-
-`example/` 是本地账单目录，不进入 Git；测试在它存在时执行额外冒烟验证，不存在时
-自动跳过，版本化单元测试仍会正常运行。
+新代码放在 `fane/`。根目录的 `package/`、`provider/`、`ir/` 以及 `tools/*.py` 是历史兼容入口，详细职责见架构文档。

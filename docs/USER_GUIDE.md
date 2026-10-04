@@ -1,475 +1,373 @@
-# Fane 功能使用手册
+# Fane 使用手册
 
-## 1. 产品边界
+这篇文档按一次实际记账流程解释 Fane。逐项参数见 [完整命令参考](COMMANDS.md)，文件字段见 [配置参考](CONFIG_REFERENCE.md)，源码目录见 [项目目录与架构](PROJECT_GUIDE.md)。
 
-Fane 把支付宝、微信导出的表格账单转换成 Beancount 分录。所有处理都在本机完成。
+## 1. 命令设计：功能 → 命令组 → 动作
 
-处理链路：
-
-```text
-账单文件 -> Provider -> 统一订单 IR -> YAML 规则 -> Beancount 模板 -> 输出或导入
-```
-
-当前支持：
-
-| Provider | 输入 | 参数 |
-|---|---|---|
-| 支付宝 | CSV | `--provider alipay` |
-| 微信 | XLSX | `--provider wechat` |
-
-## 2. 命令总览
+统一格式：
 
 ```text
-fa init       创建最小配置
-fa doctor     检查配置和规则，不处理账单
-fa inspect    只读统计账单与待分类数量
-fa trans      转换并输出到标准输出
-fa import     转换并写入 Beancount journal
-fa sync       按 jobs 配置增量处理多个账单来源
+fa [全局参数] <命令组> <动作> [动作参数]
 ```
 
-所有命令都可指定配置：
+| 功能 | 命令 | 输出/写入行为 |
+| --- | --- | --- |
+| 初始化 Fane YAML | `fa config init` | 创建配置；覆盖必须 `--force` |
+| 配置诊断 | `fa config check` | 只读；`--strict` 将警告也视为失败 |
+| 查看账单来源 | `fa providers list` | 当前支持 alipay、wechat |
+| 转换账单 | `fa bill convert` | Beancount / JSON / JSONL / 旧分组 JSON |
+| 检查账单 | `fa bill inspect` | 条数、月份、未分类数量 |
+| 单文件导入 | `fa bill import` | 默认去重后的 JSONL 预览；`--write` 写入 |
+| 列出同步任务 | `fa bill jobs` | YAML 中配置的任务名 |
+| 增量同步多个文件 | `fa bill sync JOB` | 默认预览；`--write` 更新账本及同步状态 |
+| 分类决策格式 | `fa classify schema` | JSON Schema |
+| 导出未分类分录 | `fa classify extract` | JSON，包含账户目录、交易和分录 ID |
+| 应用外部分类结果 | `fa classify apply` | 默认 JSON 计划；`--write` 修改分录及规则 |
+| 创建订阅计划 | `fa subscriptions init` | 创建暂停状态的 JSON 示例 |
+| 检查订阅计划 | `fa subscriptions check` | 校验字段、账户、币种和 Beancount |
+| 生成订阅分录 | `fa subscriptions generate` | 默认预览；`--write` 追加缺失月份并更新 include |
+| 列出内置模板 | `fa template list` | 当前 normal.j2 |
+| 查看/导出模板 | `fa template show` | 原文；`--output` 保存文件 |
+| 查看模板变量 | `fa template fields` | 变量名与类型 |
+| 检查模板 | `fa template check` | Jinja2 存在及语法检查 |
+| 校验账本 | `fa ledger validate` | 只读业务校验及 Beancount 校验 |
+| 余额断言 | `fa ledger assertions` | 默认预览；`--write` 写文件及 include |
+| 本地快照 | `fa ledger export` | JSON；`--output` 保存文件 |
+| 查看账本网页 | `fa ledger serve` | 启动 Fava 服务，前台运行 |
+| 发布 R2 快照 | `fa ledger publish` | 执行远程发布，成功后替换当前快照对象 |
 
-```bash
-fa --config /path/to/config.yaml COMMAND
+来源和输入文件没有隐含默认值：新 `bill convert/inspect/import` 都要求 `--provider` 和 `--source`。多文件工作流通过 YAML 的 `jobs` 表达，不再拼很多命令行参数。
+
+## 2. 安装、配置位置与帮助
+
+在仓库根目录安装：
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+fa --version
+fa --help
+fa bill convert --help
 ```
 
-`--config/-c` 是全局参数，必须放在子命令之前。没有指定时使用
-`~/.flow/config.yaml`。
+网页和云发布分别安装可选依赖：
 
-## 3. 初始化与配置体检
-
-### 3.1 创建配置
-
-```bash
-fa init
-fa --config /custom/config.yaml init
+```sh
+python -m pip install -e '.[web]'
+python -m pip install -e '.[cloud]'
 ```
 
-如果文件已经存在，Fane 不会覆盖。只有明确确认时才使用：
+创建自己的配置：
 
-```bash
-fa --config /custom/config.yaml init --force
+```sh
+fa --config config/bill.local.yaml config init
+fa --config config/bill.local.yaml config check --json
 ```
 
-### 3.2 检查配置
+然后设置环境变量，后续命令可以省略 `--config`：
 
-```bash
-fa doctor
-fa --config /custom/config.yaml doctor
+```sh
+export FANE_CONFIG="$PWD/config/bill.local.yaml"
 ```
 
-普通模式下，错误返回失败状态，警告只提示。这保证旧配置继续可用。若要在自动化中把
-警告也视为失败：
+优先级：`--config` > `FANE_CONFIG` > `~/.flow/config.yaml`。配置没有自动搜索仓库 `config/bill.yaml`。这份已有文件包含个人规则，应按自己的账户修改，不能假定直接可用。
 
-```bash
-fa doctor --strict
+账本入口优先级：动作 `--ledger` > `FANE_LEDGER` > 兼容 `BILLS_LEDGER` > YAML `ledger.file`。例如：
+
+```sh
+export FANE_LEDGER="/path/to/Bills/main.bean"
+fa ledger validate
 ```
 
-体检覆盖：
+帮助、版本、来源列表、模板命令、分类 Schema、初始化命令不要求已有有效 YAML。账单转换及同步要求有效 YAML；账本命令要求可定位的 Beancount 入口。显式指定不存在的配置文件时，账本命令会拒绝继续。
 
-- YAML 和 Pydantic 类型错误；
-- 拼错或未识别的字段；
-- 缺失的默认账户、默认币种；
-- 可能不合法的 Beancount 账户名；
-- 金额区间上下界；
-- 会匹配所有交易的空条件规则；
-- 外币信用卡还款所引用的账本文件；
-- 当前只为历史兼容保留、但不参与解析的规则字段。
+## 3. 从账单到账本
 
-`doctor` 不修改任何文件，也不会显示交易内容。
+### 3.1 输入文件
 
-## 4. 基础配置
+支付宝使用官方导出的 CSV，自动查找包含“交易时间”的表头，支持 UTF-8、GBK、GB18030 等编码。必需列：交易时间、交易分类、交易订单号、商家订单号、交易对方、商品说明、对方账号、金额、收/支、交易状态、收/付款方式、备注。
 
-最小配置：
+微信使用 XLSX，在前 20 行搜索表头。必需列：交易时间、交易单号、商户单号、收/支、交易对方、商品、金额(元)、当前状态、支付方式、交易类型。微信 CSV 当前没有实现，不能只把后缀改成 XLSX。缺少列、未知枚举或无法解析的金额/日期会报错。
 
-```yaml
-title: Fane
-default-minus-account: Assets:FIXME
-default-plus-account: Expenses:FIXME
-default-currency: CNY
+### 3.2 先检查，再转换
 
-alipay:
-  rules: []
-
-wechat:
-  rules: []
+```sh
+fa bill inspect --provider wechat --source /path/to/wechat.xlsx --json
+fa bill convert --provider wechat --source /path/to/wechat.xlsx
+fa bill convert --provider alipay --source /path/to/alipay.csv --output /tmp/alipay.bean
+fa bill convert --provider wechat --source /path/to/wechat.xlsx --format json --output /tmp/entries.json
+fa bill convert --provider wechat --source /path/to/wechat.xlsx --format jsonl
 ```
 
-未匹配的交易使用默认账户，因此不会直接丢失。推荐先使用 `FIXME`，通过
-`inspect` 检查待分类数量，再补充规则。
+- `beancount`：默认，输出完整分录文本。
+- `json`：数组；每项包含 `source_provider`、`source_file`、`order_id`、`date`、`month`、`kind`、`fingerprint`、`content`。
+- `jsonl`：每行一项，同上，便于流式处理。
+- `legacy-json`：历史 `expense` / `income` 按月份分组格式，仅用于旧消费者迁移。
 
-## 5. 规则配置
+JSON/JSONL 也包含渲染后的 `content`，因此依然需要可用模板。未匹配账户通常进入 `Assets:FIXME` / `Expenses:FIXME`，不是自动推断分类。`inspect` 的 unmatched 指使用默认账户的交易数量，expense/income 是上述文件分组数量；完整分类规则见配置参考。
 
-### 5.1 基本规则
+### 3.3 单文件导入
 
-```yaml
-alipay:
-  rules:
-    - peer: 中国移动
-      target-account: Expenses:Utilities:Phone
+```sh
+# 预览：读取去重索引，不写账本、不写去重索引。
+fa bill import --provider wechat --source /path/to/wechat.xlsx --journal-dir /path/to/Bills/journal --summary
 
-    - method: 余额宝
-      method-account: Assets:MMF:Alipay:YuEBao
+# 严格导入：未分类交易会使本次失败。
+fa bill import --provider wechat --source /path/to/wechat.xlsx --journal-dir /path/to/Bills/journal --require-classified --write
 ```
 
-`target-account` 表示交易去向，`method-account` 表示支付或收款账户。收入与退款会
-按交易方向交换账户。
+`kind=expense` 的分录写入 `journal/YYYY/YYYY-MM.bean`，`kind=income` 写入 `journal/YYYY/income.bean`，年份来自交易日期。当前历史分组仅把商品说明含“收益发放”的订单归入 income，其余归入 expense；它不等于完整财务收支判定。正式导入返回 `{"written": 1, "skipped": 0}`。重复导入依据来源订单号等生成的指纹跳过；再次预览已导入交易时，空计划没有 stdout 输出。`--force` 绕过去重，可能产生重复交易。
 
-### 5.2 可用匹配字段
+单文件导入不会自动更新 Beancount include，也不运行账本后置校验。应在账本年度 `index.bean` 中引用生成文件，再由主账本引用年度索引。需要多文件锁定、后置校验与回滚时用同步任务。
 
-支付宝：
+默认去重索引在账本外部的状态目录，见第 9 节。保留索引才能保持跨次导入的幂等性。
 
-```text
-peer note item category type method
-time day-range timestamp-range min-price max-price
-```
+### 3.4 多来源增量同步
 
-微信：
-
-```text
-peer item category tx_type method
-time day-range timestamp-range min-price max-price
-```
-
-`min-amount`/`max-amount` 是 `min-price`/`max-price` 的兼容别名。
-
-多个文本值可用 `separator` 分隔，默认是逗号：
-
-```yaml
-- peer: 星巴克,瑞幸
-  separator: ","
-  target-account: Expenses:Food:Coffee
-```
-
-文本匹配当前采用“包含”语义。历史字段 `full-match` 仍会被读取，但当前不改变匹配
-方式；`doctor` 会明确提示，避免误认为它已经执行精确匹配。
-
-### 5.3 金额和时间
-
-```yaml
-- timestamp-range: 2026-06-01..2026-06-30
-  min-price: 100.00
-  max-price: 200.00
-  target-account: Expenses:Food:Groceries
-
-- day-range: 15-16
-  target-account: Expenses:Monthly:MidMonth
-
-- time: 08:00..09:00
-  target-account: Expenses:Transport:Bus
-```
-
-时间范围两端都包含。跨午夜时段也支持，例如 `23:00..02:00`。
-
-### 5.4 标签和忽略
-
-```yaml
-- peer: 测试商户
-  tags: work,reimbursable
-
-- category: 不计收支
-  ignore: true
-```
-
-`ignore: true` 会让匹配交易不进入输出，使用前应先通过 `trans` 或 `inspect` 验证。
-
-### 5.5 规则顺序
-
-普通交易会按 YAML 顺序检查全部规则；后面命中的账户设置可以覆盖前面的结果。
-因此建议把通用规则放前面、具体规则放后面。`ignore` 命中后立即停止。
-
-退款沿用历史兼容逻辑：首条命中规则处理后立即交换收支账户并返回。调整退款规则时应
-使用真实脱敏样例做回归验证。
-
-## 6. 只读检查账单
-
-```bash
-fa inspect --provider wechat --source bill.xlsx
-fa inspect --provider wechat --source bill.xlsx --json
-```
-
-人类可读输出包含总数、支出、收入、待分类和月份分布。`--json` 适合脚本使用。
-
-“待分类”表示最终仍使用默认正向或负向账户的交易。若某条规则有意设置回默认账户，它
-也会被计入，这是偏保守的安全策略。
-
-## 7. 转换输出
-
-### 7.1 兼容 JSON（默认）
-
-```bash
-fa trans --provider alipay --source bill.csv
-```
-
-输出结构保持历史兼容：
-
-```json
-{"expense":{"08":["..."]},"income":{"08":["..."]}}
-```
-
-### 7.2 Beancount 文本
-
-```bash
-fa trans --provider alipay --source bill.csv --format beancount
-```
-
-### 7.3 JSONL
-
-```bash
-fa trans --provider wechat --source bill.xlsx --format jsonl
-```
-
-每行包含日期、月份、类型、指纹、Beancount 文本、来源和订单号，适合 UNIX 管道。
-
-## 8. 导入账本
-
-### 8.1 预览
-
-```bash
-fa import --provider wechat --source bill.xlsx \
-  --journal-dir ~/.flow/account/journal --dry-run
-```
-
-`--dry-run` 输出计划写入的 JSONL，不创建 journal 或去重索引。
-
-### 8.2 正式导入
-
-```bash
-fa import --provider wechat --source bill.xlsx \
-  --journal-dir ~/.flow/account/journal
-```
-
-默认文件路由：
-
-```text
-支出 -> JOURNAL_DIR/YEAR/YEAR-MM.bean
-收入 -> JOURNAL_DIR/YEAR/income.bean
-```
-
-标准输出保持兼容：
-
-```json
-{"written": 12, "skipped": 3}
-```
-
-### 8.3 安全选项
-
-导入前把摘要写到标准错误，不污染机器读取的 JSON 标准输出：
-
-```bash
-fa import ... --summary
-```
-
-如果仍有待分类交易就拒绝写入：
-
-```bash
-fa import ... --require-classified
-```
-
-推荐日常组合：
-
-```bash
-fa import ... --summary --require-classified
-```
-
-### 8.4 去重
-
-默认索引：
-
-```text
-JOURNAL_DIR/../.fane/imported.jsonl
-```
-
-自定义位置：
-
-```bash
-fa import ... --dedupe-index /path/to/imported.jsonl
-```
-
-平台订单号优先作为指纹；没有订单号时使用时间、金额、对方、商品和支付方式等字段生成
-SHA-256。再次导入相同账单会计入 `skipped`。
-
-`--force` 会绕过去重并可能产生重复分录，只应在明确修复历史数据时使用。
-
-写入账本和去重索引后都会执行刷新与 `fsync`，降低系统异常造成的缓存数据丢失风险。
-
-## 9. 自动同步任务
-
-`sync` 把“找当天账单、判断文件是否变化、转换、去重、路由、写入、校验”收进 Fane，
-用于替代外围的 `sed | jq | base64` 写入脚本。`trans` 和 `import` 的原有用法不受影响。
-
-### 9.1 配置一个每日任务
-
-下面的配置等价于常见的支付宝 CSV + 微信 XLSX 每日导入方式：
+在 YAML 中追加：
 
 ```yaml
 jobs:
   daily:
     timezone: Asia/Shanghai
-    journal-dir: /root/.flow/account/journal
-    state-file: /root/.flow/account/.fane/sync-state.json
-    lock-file: /root/.flow/account/.fane/sync.lock
-    dedupe-index: /root/.flow/account/.fane/imported.jsonl
-    on-missing: skip
+    journal-dir: /path/to/Bills/journal
     require-classified: true
-    change-detection: sha256
-    write-mode: append
-
-    routing:
-      expense: "{year}/{year}-{month}.bean"
-      income: "{year}/income.bean"
-
     sources:
-      - id: alipay-daily
+      - id: alipay
         provider: alipay
-        path: "/root/.flow/data/alipay/{date}.csv"
-
-      - id: wechat-daily
+        glob: /path/to/imports/alipay/*.csv
+      - id: wechat
         provider: wechat
-        path: "/root/.flow/data/wechat/{date}.xlsx"
-
+        glob: /path/to/imports/wechat/*.xlsx
     validators:
-      - command: ["make", "validate"]
-        cwd: /root/.flow/account
-        timeout-seconds: 300
+      - command: [fa, ledger, validate, --ledger, /path/to/Bills/main.bean]
 ```
 
-`path` 支持 `{date}`、`{year}`、`{month}`、`{day}`。需要一次处理多个文件时，将
-`path` 换成 `glob`，例如：
-
-```yaml
-glob: "/root/.flow/data/wechat/{year}-{month}-*.xlsx"
+```sh
+fa bill jobs --json
+fa bill sync daily --json
+fa bill sync daily --date 2026-10-04 --json --write
+fa bill sync daily --rescan --json --write
 ```
 
-每个来源必须有唯一 `id`，并且只能配置 `path` 或 `glob` 其中一个。来源级
-`on-missing` 可以覆盖任务级设置：`skip` 表示账单未到时正常跳过，`error` 表示失败。
+同步按文件 SHA-256 跳过未变文件，再按交易指纹去重；`--rescan` 跳过文件缓存，仍保留交易去重。报告中 `planned` 是拟写入数，`written` 是实际写入数；预览的 written 为 0。正式写入会持有任务锁，validator 失败时恢复本次交易文件、索引和状态。
 
-路由变量包括 `{year}`、`{month}`、`{kind}`、`{provider}`。年份和月份来自交易日期，
-不是脚本执行日期，因此跨年补录会写入正确年份。路由只能生成 `journal-dir` 内的相对
-路径，不能使用绝对路径或 `..`。
+`--date` 用于任务文件路径占位符 `{date}`、`{year}`、`{month}`、`{day}`，不是账单交易日期过滤。任务路径和路由写法详见配置参考。同步同样不创建账本 include；确保目标月份与 income 文件可被主账本加载。
 
-### 9.2 运行、预演和补跑
+## 4. tools 是什么，外部工具怎么调用
 
-```bash
-# 使用任务时区中的今天
-fa --config /root/.flow/bill.yaml sync daily
+`tools/` 原本是源码目录中的独立终端脚本。现在功能在安装包内，统一通过以下命令调用：
 
-# 指定账单日期，适合补跑
-fa --config /root/.flow/bill.yaml sync daily --date 2026-08-03
+```sh
+fa classify schema
+fa classify extract --ledger /path/to/Bills/main.bean --output /tmp/unclassified.json
+fa classify apply --ledger /path/to/Bills/main.bean --input /tmp/decisions.json
+fa classify apply --ledger /path/to/Bills/main.bean --input /tmp/decisions.json --write
 
-# 完整解析和分类，但不写 journal、索引或状态
-fa --config /root/.flow/bill.yaml sync daily --date 2026-08-03 --dry-run
-
-# 机器可读报告
-fa --config /root/.flow/bill.yaml sync daily --date 2026-08-03 --json
-
-# 忽略文件缓存重新解析；交易指纹去重仍生效
-fa --config /root/.flow/bill.yaml sync daily --date 2026-08-03 --rescan
+fa subscriptions init
+fa subscriptions check --ledger /path/to/Bills/main.bean
+fa subscriptions generate --ledger /path/to/Bills/main.bean --month 2026-10 --json
+fa subscriptions generate --ledger /path/to/Bills/main.bean --month 2026-10 --json --write
 ```
 
-配置中的 `require-classified: true` 会阻止待分类交易写入。也可在某次运行中临时启用：
+外部工具可以启动这些进程、传参数、读写 JSON；Shell、任务调度器和 AI 助手都可这样接入。Fane 没有 HTTP API 或 MCP 服务。分类功能没有 API key、模型选择或联网参数，因为它不负责请求模型。
 
-```bash
-fa --config /root/.flow/bill.yaml sync daily --require-classified
+### 4.1 分类输入输出流程
+
+1. `extract` 扫描账本根目录 `journal/**/*.bean`，找出 FIXME/FixMe/Fix 占位分录，并读取 `accounts/data/*.bean` 的账户目录。
+2. 人工或外部 AI 阅读导出 JSON 和 `schema`，生成 decisions JSON。必须保留导出的 posting_id；不要自己编造 ID。
+3. `apply` 默认只检查和展示修改计划。加 `--write` 后替换账户、必要时新增费用/收入账户，并向 Fane YAML 追加来源分类规则。
+4. 正式写入默认执行 `config check` 与 `ledger validate`，失败恢复本次修改的文件。
+
+外部 AI 可以使用下面的任务说明：
+
+```text
+根据提供的 Fane extract JSON 与 decision JSON Schema，为每个 placeholder_postings
+生成一条决策。优先已有账户，不修改日期、金额、支付方向和交易事实。
+置信度不足或经济归属不明确时 action=defer 并说明原因。
+apply 的 rule.match 至少包含两个当前交易的来源字段，其中必须有 peer 或 item；
+只使用 allowed_rule_fields 中对应 provider 的字段和值，不使用分隔符或范围。
+输出一个纯 JSON object：schema_version=1，decisions 数组；不要输出 Markdown。
 ```
 
-### 9.3 增量、去重和失败恢复
+既有费用账户的决策示意（posting_id 必须替换为导出结果中真实的 64 位值，匹配字段必须来自该交易）：
 
-`sync` 使用两层机制：
-
-- 文件 SHA-256 用于快速跳过完全没变化的输入；
-- 平台订单号或内容 SHA-256 形成交易指纹，保证账单文件增加新行后只追加新交易。
-
-文件改名或 `--rescan` 不会绕过交易去重。状态只在账本写入和全部 `validators` 成功后
-更新。如果写入、校验或状态保存失败，本次改动的 journal、去重索引和状态会恢复到
-运行前。锁文件阻止 cron 重叠执行同一同步目录；如果账单在解析过程中仍被下载程序
-改写，本次同步会停止，等待文件稳定后重跑即可。
-
-`validators.command` 必须是参数数组，不通过 shell 展开；这既支持 `make validate`，也
-避免字符串拼接带来的转义问题。任何非零退出码或超时都会让同步失败并回滚，默认超时
-是 300 秒。
-
-### 9.4 从现有 Bash 脚本迁移
-
-配置并验证后，原脚本可缩减为：
-
-```bash
-#!/bin/bash
-set -euo pipefail
-cd /root/.flow
-exec /root/.local/bin/fa -c /root/.flow/bill.yaml sync daily
+```json
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "posting_id": "<从 extract 复制真实 posting_id>",
+      "action": "apply",
+      "replacement_account": "Expenses:Food",
+      "confidence": 0.99,
+      "reason": "该笔为午餐费用",
+      "new_account": null,
+      "rule": {
+        "provider": "wechat",
+        "account_field": "target-account",
+        "match": {"peer": "咖啡店", "item": "午餐"}
+      }
+    }
+  ]
+}
 ```
 
-安全切换顺序：
+也可以通过 stdin 或 Base64 传输：
 
-1. 运行 `fa -c /root/.flow/bill.yaml doctor`；
-2. 对尚未导入的新日期运行 `sync daily --date YYYY-MM-DD --dry-run`；
-3. 停用旧 Bash 的写入逻辑；
-4. 从下一份未处理的账单开始正式运行 `sync`；
-5. 确认一次正式运行和一次重复运行，后者应显示 `noop` 或全部去重。
-
-不要让旧脚本和 `sync` 同时写账本。旧脚本写过的历史分录没有 Fane 交易指纹索引，
-因此首次切换应从一份确定未写入的新账单开始；不要直接对历史文件批量运行 `sync`。
-
-## 10. 外币信用卡还款
-
-支付宝可配置来源特有的外币信用卡还款后处理：
-
-```yaml
-foreign-credit-card-repayments:
-  - trigger-minus-account: Assets:MMF:Alipay:YuEBao
-    trigger-plus-account: Assets:DebitCard:ICBC:4931
-    liability-account: Liabilities:CreditCard:ICBC-USD
-    ledger-file: /absolute/path/to/main.bean
-    currency: USD
-    peer: 工商银行
-    item: 外币信用卡还款
+```sh
+cat /tmp/decisions.json | fa classify apply --ledger /path/to/Bills/main.bean
+fa classify apply --ledger /path/to/Bills/main.bean --input-base64 '<UTF-8 JSON 的 Base64>'
 ```
 
-Fane 会读取指定账本余额并补充对应还款分录。先运行 `doctor` 确认路径，再用
-`trans --format beancount` 检查结果。
+默认阈值 0.92；缺失/暂缓决策会拒绝整批应用，`--allow-partial` 才允许保留。交易变化后 posting_id 变化，旧结果会被拒绝。新增账户只允许 Expenses/Income；费用账户额外需要 `new_account.comment_zh`、`new_account.flux_label`，收入需要 comment_zh。文件结构及字段限制见配置参考和 `fa classify schema`。
 
-## 11. 常见问题
+注意：追加规则要求 YAML 有单独成行的 `alipay:` / `wechat:` 段与缩进列表；初始化生成的 `rules: []` 会自动展开。`wechat: {rules: [...]}` 等行内结构需先展开。
 
-### 帮助命令提示配置不存在
+`--validator '命令 参数'` 可重复，替代默认账本校验；默认配置诊断仍保留，`--skip-config-check` 才跳过它。校验命令通过参数数组执行，不支持 Shell 管道/重定向。预览不运行后置校验。`ledger validate` 对未使用的 open 账户也会报错；应清理不用的账户，或在明确只需要 Beancount 检查时指定 `--validator 'bean-check /path/to/Bills/main.bean'`。
 
-新版已经允许在没有配置时执行所有 `--help`。若仍出现旧行为，先确认实际执行文件：
+## 5. 订阅生成：固定计划，不是付款工具
 
-```bash
-which fa
-head -1 "$(which fa)"
+订阅功能每月生成账本分录，不会支付费用，也不是后台定时服务。默认计划文件是当前 Fane YAML 同目录的 `subscriptions.json`，可用 `--subscriptions` 指定任意 JSON。
+
+```sh
+fa subscriptions init
+# 编辑 JSON：账户必须已 open，币种必须是 operating_currency，status 改为 active。
+fa subscriptions check --json
+fa subscriptions generate --month 2026-10 --json
+fa subscriptions generate --month 2026-10 --json --write
+fa subscriptions generate --until 2026-10-04 --json
 ```
 
-源码调试时直接使用 `.venv/bin/python main.py`。
+`--month` 只处理指定月份；`--until` 从每项 start_date 生成到指定日期（包含边界）；不指定二者则生成到本机今天。二者互斥。账单日超出当月天数会调整为月底，例如 31 日在 2 月变为 28/29 日。paused/cancelled 不生成。
 
-### 平台新增交易类型后导入失败
+重复运行按 `(subscription_id, period)` 跳过已生成分录，也识别同月同商户、说明、借方账户、金额和币种的旧分录。正式生成写入月度 journal，并更新年度及 journal 索引。主账本必须 include `journal/index.bean`；生成后加载检查失败或分录未被主账本引用，会恢复文件。
 
-支付宝和微信会不定期增加状态或交易类型。错误信息会显示不支持的原始值；应先保留原始
-账单，增加枚举和回归测试后再导入，不建议把未知类型直接忽略。
+旧个人计划不会自动迁移，可显式指定：
 
-### `doctor` 报未知字段，但现有转换仍能运行
-
-这是兼容设计：运行时保持 Pydantic 的历史宽松行为，`doctor` 负责把可能的拼写错误显式
-暴露。确认字段确实是历史扩展时可继续使用；自动化可通过 `doctor --strict` 强制治理。
-
-### `sync` 显示 unchanged，但我想重新解析
-
-使用 `--rescan`。它只绕过文件 SHA-256 缓存，不会绕过交易指纹，因此不会因为重新解析
-直接重复追加。如果确实要重复写入，仍应使用单文件 `import --force`，并先备份账本。
-
-### 校验失败后为什么没有新分录
-
-这是预期行为。`sync` 会回滚本次 journal 和索引改动，修复分类或校验错误后直接重跑
-同一个日期即可。
-
-## 12. 开发与验证
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m compileall -q ir package provider tests
-.venv/bin/python -m pip check
+```sh
+fa subscriptions generate --subscriptions tools/auto_subscriptions.json --month 2026-10 --json
 ```
 
-`tests/test_cli_tools.py` 和 `tests/test_sync.py` 是不依赖私人账单的版本化测试；
-`example/` 存在时，还会运行本地支付宝/微信样例冒烟测试。
+历史 `generated_by: "tools/generate_subscriptions.py"` 标记保留用于识别既有数据，并不意味着新入口依赖该脚本。当前分类应用、单文件导入与订阅生成没有跨进程写入锁，避免同时运行多个写入操作；同步任务有任务锁。
+
+## 6. j2 在哪里，缺失时怎么办
+
+`.j2` 是 Jinja2 模板文件的常用后缀。模板描述 Beancount 文本格式，Python 提供交易变量并渲染它。它不负责读取账单、分类或导入。
+
+内置模板：`fane/infrastructure/rendering/normal.j2`。之前的 `package/template/normal.j2` 已移到这里。打包配置会将 `.j2` 放进 wheel；运行时通过包资源加载，因此从其他工作目录执行 `fa` 也能找到。
+
+```sh
+fa template list
+fa template show
+fa template fields --json
+fa template show --output /tmp/my-normal.j2
+fa template check --file /tmp/my-normal.j2
+fa bill convert --provider wechat --source /path/to/wechat.xlsx --template /tmp/my-normal.j2
+```
+
+长期开启可在 YAML 写 `template-file: templates/my-normal.j2`，相对路径以 YAML 所在目录解析。本次 `--template` 优先于 YAML，YAML 优先于内置模板。convert/inspect/import/sync 都支持覆盖模板。
+
+常见变量：`pay_time` 日期时间、`peer` 商户、`item` 商品说明、`money` 金额、`currency` 币种、`plus_account`/`minus_account` 账户、`metadata` 字典、`tags` 列表；全量变量用 `template fields` 查看。内置模板还处理佣金及自定义记账字符串。
+
+```jinja2
+{{ pay_time.strftime('%Y-%m-%d') }} * "{{ peer }}" "{{ item }}"
+    {{ plus_account }} {{ money }} {{ currency }}
+    {{ minus_account }} -{{ money }} {{ currency }}
+```
+
+上例仅用于理解变量；完整逻辑请从内置模板导出后修改。`template check` 检查 Jinja2 语法，不能证明实际渲染结果是合法 Beancount；修改后应转换真实示例并加载账本校验。未定义变量会在实际渲染时明确报错，可以用 template fields 核对变量名。
+
+如果把内置 `.j2` 真正删掉，Fane 不会凭空生成模板。下一次加载会报缺失，需重新安装完整包、恢复模板，或指定可用的外部模板。源码目录中的 editable 安装直接读取源码模板；普通 wheel 安装读取安装位置的模板。
+
+## 7. 账本工具
+
+### 7.1 校验
+
+```sh
+fa ledger validate --ledger /path/to/Bills/main.bean
+fa ledger validate --allow-ambiguous-account Assets:Internal:Transit
+```
+
+除了 Beancount 本身的错误，还检查主账本目录下未被 include 的 `.bean`、未使用的 open 账户、未 open 或晚于首次使用的账户、Fane 配置引用的未 open 账户、币种声明，以及 YAML 配置的账户段名和元数据策略。未使用账户检查默认就开启，因此“只有 open 的空账本”可能校验失败。
+
+### 7.2 余额断言
+
+```sh
+fa ledger assertions --date 2026-10-01
+fa ledger assertions --date 2026-10-01 --write --output assertions/2026-10.bean --index assertions/index.bean
+```
+
+断言为指定日期**日初**的资产/负债余额，不包含当天交易；默认明天。`--output` 和 `--index` 相对主账本目录解析，也可配置到 YAML。写入更新索引，但主账本仍需要引用 assertions 索引。`--include-internal` 允许包含配置 ignored-prefixes 原本排除的账户，`--precision` 覆盖小数位数。
+
+### 7.3 快照和网页
+
+```sh
+fa ledger export --year 2026 --output /tmp/ledger-2026.json
+fa ledger export --meta
+fa ledger export --all --include-transactions --version local
+fa ledger serve --host 127.0.0.1 --port 5000
+```
+
+export 默认所有年份；`--year`、`--meta`、`--all` 互斥。交易明细移除账本文件名/行号，仍包含实际财务内容。Fava 需要 web extra 或 `--executable /path/to/fava`。服务前台运行，按 Ctrl+C 结束。
+
+### 7.4 云发布
+
+```sh
+# 按部署环境配置 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY，或 SDK 支持的凭据来源。
+fa ledger publish --version '<源账本提交 SHA>' --endpoint 'https://<account>.r2.cloudflarestorage.com' --bucket '<bucket>'
+```
+
+需要 cloud extra。可用 `FANE_R2_ENDPOINT`、`FANE_R2_BUCKET`、`FANE_R2_KEY` 代替相应参数；默认快照对象 key 为 current.json。发布把完整快照写入单个对象（默认 current.json），对象替换成功后即成为当前快照；不会单独上传版本目录或指针文件。同一日期、相同账本版本和生成器版本自动跳过，否则先校验再发布；`--force` 强制重新发布。它没有预览开关，执行该命令即表示发布。
+
+## 8. 外部脚本如何判断成功
+
+```python
+import json
+import subprocess
+
+result = subprocess.run(
+    ["fa", "--config", "/path/to/bill.yaml", "bill", "inspect",
+     "--provider", "wechat", "--source", "/path/to/wechat.xlsx", "--json"],
+    capture_output=True, text=True, check=True,
+)
+summary = json.loads(result.stdout)
+print(summary["total"], summary["unmatched"])
+```
+
+退出码 0 才解析成功结果；一般业务错误 1，CLI 参数错误 2；`classify apply` 拒绝或写入失败为 2，并将 JSON 错误写入 stderr。完整输出约定在命令参考末尾。
+
+如果使用调度器，调度的命令应包含绝对配置路径、绝对输入路径或明确的 cwd，并使用已安装 `fa` 的虚拟环境路径。定时执行是外部任务调度器的职责，Fane 自己没有常驻调度器。
+
+## 9. 路径和状态：避免混淆
+
+| 路径 | 解析规则 |
+| --- | --- |
+| 全局 `--config`、账单 `--source`、CLI `--template`、单文件 `--journal-dir`、`--dedupe-index` | 相对当前工作目录 |
+| CLI `--ledger` 或账本环境变量 | 相对当前工作目录 |
+| YAML `ledger.file`、`template-file`、还款 `ledger-file` | 相对 YAML 目录 |
+| YAML 同步任务中的 journal-dir/source/state/lock/dedupe/validator cwd | 相对当前工作目录；调度时建议绝对路径 |
+| assertions 的 output/index | 相对主账本目录 |
+| `--subscriptions`、分类 `--root`、分类 `--input`、普通 `--output` | 相对当前工作目录 |
+| 默认订阅 JSON | YAML 同目录 subscriptions.json |
+| 分类 root / 订阅 journal | 默认主账本所在目录 / 其 journal 子目录 |
+
+导入/同步默认状态根目录：`FANE_STATE_HOME`，否则 `XDG_STATE_HOME/fane`，否则 `~/.local/state/fane`。下面按 journal 绝对路径的哈希区分账本；`FANE_STATE_NAMESPACE` 可指定固定子目录名。包含导入指纹、任务状态和锁。
+
+旧账本 `.fane` 状态存在但新目录未迁移时，工具会拒绝导入并告知迁移目标；应迁移文件或显式设置路径，不要直接删除旧指纹后重导。账本搬家后路径哈希变化，也需要迁移原状态或使用固定 namespace。
+
+## 10. 常见问题与迁移
+
+| 现象 | 检查方法 |
+| --- | --- |
+| 找不到 fa | 激活安装它的虚拟环境，或执行该环境里的 `python -m fane` |
+| 找不到配置 | `fa --config /绝对路径/bill.yaml config check`；默认不是仓库 YAML |
+| 没有写入 | 新命令默认预览，正式操作加 `--write`；也可能全部已去重 |
+| 账本校验失败但 Beancount 能打开 | 还有项目业务检查：未引用文件、未使用账户、币种/元数据/配置引用 |
+| 分类 apply 拒绝 | posting_id 可能已过期、置信度不足、存在 defer/缺失，或自动规则过宽 |
+| 订阅生成失败并恢复 | 账户/币种不匹配、主账本未 include journal 索引或新分录不合法 |
+| 模板不存在 | `fa template list`；恢复安装资源或指定 `--template` |
+| 改规则后同步没有变化 | `--rescan` 才重读未变文件；已导入交易仍会去重，不会重新分类历史分录 |
+
+旧 `fa trans/import/sync/init/doctor/inspect` 仍可用，但保留历史默认值：尤其旧 import/sync 默认直接写入。新自动化应迁移到分组命令。旧脚本与新命令逐项映射见 [命令参考](COMMANDS.md#旧入口迁移)。

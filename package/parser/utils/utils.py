@@ -1,10 +1,5 @@
-def split_find_contains(value: str, target: object, sep: str, match: bool) -> bool:
-    ss = value.split(sep)
-    is_contains = False
+"""Compatibility alias; implementation lives in fane.core.matching."""
+import sys
+from importlib import import_module
 
-    for s in ss:
-        if s in str(target):
-            is_contains = True
-            break
-
-    return is_contains and match
+sys.modules[__name__] = import_module("fane.core.matching")
