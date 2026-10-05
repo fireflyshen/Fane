@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -5,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from jinja2 import (
+    BaseLoader,
     Environment,
     FileSystemLoader,
     PackageLoader,
@@ -13,15 +15,27 @@ from jinja2 import (
     TemplateNotFound,
     TemplateSyntaxError,
 )
+from jinja2.exceptions import TemplateError as JinjaError
 
 from fane.core.errors import TemplateError
 
 template_dir = Path(__file__).resolve().parent
-# 初始化
-env: Environment = Environment(
-    loader=PackageLoader("fane.infrastructure.rendering", package_path=""),
-    undefined=StrictUndefined,
-)
+
+
+def _format_amount(value: Decimal, precision: int | None = 2) -> str:
+    return format(value, "f" if precision is None else f".{precision}f")
+
+
+def _create_environment(loader: BaseLoader) -> Environment:
+    environment = Environment(loader=loader, undefined=StrictUndefined)
+    environment.filters["bean_quote"] = lambda value: json.dumps(
+        str(value), ensure_ascii=False
+    )
+    environment.filters["amount"] = _format_amount
+    return environment
+
+
+env = _create_environment(PackageLoader("fane.infrastructure.rendering", package_path=""))
 
 
 @dataclass
@@ -41,6 +55,7 @@ class NormalOrder:
     currency: str
     metadata: dict[str, str]
     tags: list[str]
+    amount_precision: int | None = 2
 
 
 def _environment(file: Path | None = None) -> tuple[Environment, str | None]:
@@ -49,9 +64,7 @@ def _environment(file: Path | None = None) -> tuple[Environment, str | None]:
     file = file.expanduser().resolve()
     if not file.is_file():
         raise TemplateError(f"模板文件不存在: {file}")
-    return Environment(
-        loader=FileSystemLoader(str(file.parent)), undefined=StrictUndefined
-    ), file.name
+    return _create_environment(FileSystemLoader(str(file.parent))), file.name
 
 
 def get_template(
@@ -67,6 +80,21 @@ def get_template(
     except TemplateSyntaxError as error:
         raise TemplateError(
             f"模板语法错误: {error.name}:{error.lineno}: {error.message}"
+        ) from error
+
+
+def render_normal_order(
+    order: NormalOrder,
+    *,
+    template_name: str = "normal.j2",
+    template_file: Path | None = None,
+) -> str:
+    template = get_template(template_name, template_file)
+    try:
+        return template.render(**vars(order))
+    except JinjaError as error:
+        raise TemplateError(
+            f"模板渲染失败: {error}；可用变量见 fa template fields"
         ) from error
 
 

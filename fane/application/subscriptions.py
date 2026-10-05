@@ -16,6 +16,8 @@ from pathlib import Path
 from beancount import loader
 from beancount.core.data import Open, Transaction
 
+from fane.infrastructure.rendering.templates import NormalOrder, render_normal_order
+
 GENERATED_BY = "tools/generate_subscriptions.py"
 
 
@@ -50,17 +52,32 @@ class GeneratedEntry:
             / f"{self.date.year}-{self.date.month:02d}.bean"
         )
 
-    def render(self) -> str:
-        amount = format_decimal(self.subscription.amount)
-        return (
-            f"\n{self.date:%Y-%m-%d} * {json.dumps(self.subscription.payee, ensure_ascii=False)} {json.dumps(self.subscription.narration, ensure_ascii=False)}\n"
-            f"    subscription_id: {json.dumps(self.subscription.id, ensure_ascii=False)}\n"
-            f'    subscription_type: "{self.subscription.kind}"\n'
-            f'    generated_by: "{GENERATED_BY}"\n'
-            f'    period: "{self.period}"\n'
-            f"    {self.subscription.debit_account}    {amount} {self.subscription.currency}\n"
-            f"    {self.subscription.credit_account}   -{amount} {self.subscription.currency}\n"
+    def render(self, template_file: Path | None = None) -> str:
+        order = NormalOrder(
+            pay_time=dt.datetime.combine(self.date, dt.time.min),
+            peer=self.subscription.payee,
+            item=self.subscription.narration,
+            note="",
+            money=self.subscription.amount,
+            commission=Decimal(0),
+            plus_account=self.subscription.debit_account,
+            minus_account=self.subscription.credit_account,
+            plus_str="",
+            minus_str="",
+            pnl_account="",
+            commission_account="",
+            currency=self.subscription.currency,
+            metadata={
+                "subscription_id": self.subscription.id,
+                "subscription_type": self.subscription.kind,
+                "generated_by": GENERATED_BY,
+                "period": self.period,
+            },
+            tags=[],
+            amount_precision=None,
         )
+        content = render_normal_order(order, template_file=template_file)
+        return "\n" + content.rstrip("\n") + "\n"
 
 
 def parse_date(value: str, field: str) -> dt.date:
@@ -316,7 +333,7 @@ def update_indexes(generated_entries, root: Path):
     journal_index.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
-def write_entries(generated_entries, root: Path):
+def write_entries(generated_entries, root: Path, template_file: Path | None = None):
     by_path = {}
     for entry in generated_entries:
         by_path.setdefault(entry.target_path(root), []).append(entry)
@@ -325,7 +342,7 @@ def write_entries(generated_entries, root: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as handle:
             for entry in entries:
-                handle.write(entry.render())
+                handle.write(entry.render(template_file))
 
     update_indexes(generated_entries, root)
 
@@ -355,7 +372,12 @@ class SubscriptionService:
         }
 
     def generate(
-        self, *, month: str | None = None, until: str | None = None, write: bool = False
+        self,
+        *,
+        month: str | None = None,
+        until: str | None = None,
+        write: bool = False,
+        template_file: Path | None = None,
     ) -> dict:
         if month and until:
             raise ValueError("--month 与 --until 不能同时使用")
@@ -378,7 +400,7 @@ class SubscriptionService:
                     "date": entry.date.isoformat(),
                     "period": entry.period,
                     "target": str(entry.target_path(self.root)),
-                    "content": entry.render(),
+                    "content": entry.render(template_file),
                 }
                 for entry in entries
             ],
@@ -394,7 +416,7 @@ class SubscriptionService:
                 path: path.read_bytes() if path.exists() else None for path in targets
             }
             try:
-                write_entries(entries, self.root)
+                write_entries(entries, self.root, template_file)
                 _, _, visible, _ = load_ledger_state(self.ledger)
                 if any(
                     (entry.subscription.id, entry.period) not in visible

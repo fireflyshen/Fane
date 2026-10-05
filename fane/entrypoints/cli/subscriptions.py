@@ -91,11 +91,17 @@ def generate(
     as_json: Annotated[
         bool, typer.Option("--json", help="JSON 结果，包含每笔分录文本")
     ] = False,
+    template: Annotated[
+        Path | None, typer.Option("--template", help="本次使用的自定义 Jinja2 模板")
+    ] = None,
 ):
     """生成缺少的月度分录；正式写入后检查账本，失败回滚。"""
     with command_errors("订阅生成失败"):
+        cli = get_cli_context(ctx)
+        if template is None and cli.config_path.is_file() and cli.config.template_file:
+            template = Path(cli.config.template_file)
         result = _service(ctx, ledger, subscriptions).generate(
-            month=month, until=until, write=write
+            month=month, until=until, write=write, template_file=template
         )
         if as_json:
             output_json(result)

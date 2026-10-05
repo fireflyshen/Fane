@@ -71,7 +71,9 @@ Flova 主体使用 Python 标准库，通过 uv 管理的独立环境运行。Fa
 写入阶段的入口：
 
 ```bash
-/root/.flow/runtime/bin/flova finance finish --write --decisions-base64 'BASE64_JSON'
+/root/.flow/runtime/bin/flova finance finish \
+  --subscriptions /root/.flow/config/subscriptions.json \
+  --write --decisions-base64 'BASE64_JSON'
 ```
 
 没有待分类交易时，传空字符串。分类使用：
@@ -86,31 +88,47 @@ Flova 主体使用 Python 标准库，通过 uv 管理的独立环境运行。Fa
 已成功完成的入账不会因后续 AI 或订阅失败撤销；重试依靠交易去重和分类 posting ID 校验。
 两次同时准备或同时写入会被锁拒绝，AI 等待期间的变化由 Fane 检测。
 
-## 订阅配置尚须确认
+## 订阅配置与自动记账
 
-2026-10-04 检查时，服务器账本 Makefile 没有 `subscriptions` 目标，尚未配置新指令要求的订阅计划。
-最近一次历史执行中，该节点已经因为 Python 环境缺少 Beancount 返回退出码 2，
-但旧工作流仍继续提交，因此整个工作流显示“成功”。
+2026-10-05 起，rn 的正式订阅计划统一位于 `/root/.flow/config/subscriptions.json`，
+包含用户确认的三个每月计划：Google One Pro、Codex 和 Apple 礼品卡充值。
+它属于服务配置，不放在账本数据仓库中。`Sub Bill Flow` 的
+“应用分类并生成订阅”节点通过 `--subscriptions` 读取这一个文件，替代旧 `make subscriptions`。
 
-不能用空计划冒充成功，也不能凭猜测填写订阅金额、账户和扣款日。
-在确认实际计划之前，账单新流程的订阅步骤保留原 `make subscriptions` 语义，
-同时明确检查失败；要让订阅步骤正常完成，仍须解决这个配置缺口。
-
-确认 JSON 计划的路径后，在写入命令加入：
-
-```bash
---subscriptions /root/.flow/data/account/实际的订阅计划.json
-```
-
-该参数会把旧 Makefile 步骤替换为：
+执行流程会生成从各订阅 `start_date` 到服务器当天已经到期的分录；
+尚未到扣款日的月份不会提前生成。没有待分类交易时，仍会检查订阅。
+手动检查和预览：
 
 ```bash
-/root/.local/bin/fa --config /root/.flow/config/fane.yaml subscriptions generate \
+fa --config /root/.flow/config/fane.yaml subscriptions check \
   --ledger /root/.flow/data/account/main.bean \
-  --subscriptions /root/.flow/data/account/实际的订阅计划.json --write --json
+  --subscriptions /root/.flow/config/subscriptions.json --json
+
+fa --config /root/.flow/config/fane.yaml subscriptions generate \
+  --ledger /root/.flow/data/account/main.bean \
+  --subscriptions /root/.flow/config/subscriptions.json \
+  --until "$(date +%F)" --json
 ```
 
-这里的订阅只生成账本分录，不执行支付或扣款。
+Fane 2.0.2 的账单和订阅共用 `normal.j2` 和渲染入口，统一使用 4 空格缩进、账户左对齐、金额右对齐和币种同列；
+现有订阅只调整空白，不改变金额、日期或去重标记。
+修改同一个 YAML `template-file` 会同时影响账单和订阅；`fa subscriptions generate --template` 可作单次覆盖，n8n 无需新增节点。
+
+只生成账本分录，不执行支付或扣款。正式手动写入应使用上面的
+`flova finance finish --write`，与 n8n 共用财务锁；不要并发运行直接的 `fa --write`。
+
+同一 `subscription_id` 和 `period` 已经存在时跳过；配置中重复的 `id` 会被拒绝。
+旧记录只有在月份、商户、说明、借方账户、金额和币种匹配时才自动识别。
+金额不同的历史记录须先确认，不能假定已去重。此次按用户确认给七月、八月的
+Apple 礼品卡充值补了订阅 ID 和月份，保留原日期和金额；九月已有标记。
+修改金额或扣款日只影响尚未生成的月份，不会自动修改已有分录，订阅 ID 应保持稳定。
+支付宝、微信导入的同一费用也不能保证被订阅识别，避免为同一扣费设置两个记账来源。
+
+验证：账本副本首次生成 2 笔，第二次执行为 `noop`、新增 0 笔；真实 n8n SSH
+预览和结果检查节点通过。演练未执行生产账本新增写入、通知或提交。
+
+新增或暂停订阅只编辑这个 JSON 文件，`status` 支持 `active`、`paused`、`cancelled`。
+字段定义见 [订阅配置](CONFIG_REFERENCE.md#7-月度订阅-json)。
 
 ## 去重和回滚兼容
 

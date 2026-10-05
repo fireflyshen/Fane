@@ -289,6 +289,7 @@ fa subscriptions generate [OPTIONS]
 | `--until` | str | 未指定 | 从订阅起始日生成到 YYYY-MM-DD；默认本机今天 | — |
 | `--write` | boolean | 关闭 | 正式追加分录并更新 include；默认仅预览 | — |
 | `--json` | boolean | 关闭 | JSON 结果，包含每笔分录文本 | — |
+| `--template` | path | 未指定 | 覆盖共享 Jinja2 模板；否则读取 YAML 的 template-file 或内置 normal.j2 | — |
 
 ## fa subscriptions init
 

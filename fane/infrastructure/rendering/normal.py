@@ -1,12 +1,14 @@
 from pathlib import Path
 
 from jinja2 import Template
-from jinja2.exceptions import TemplateError as JinjaError
 
-from fane.core.errors import TemplateError
 from fane.core.models import Account, Order
 from fane.infrastructure.rendering.strategy import TemplateStrategy
-from fane.infrastructure.rendering.templates import NormalOrder, get_template
+from fane.infrastructure.rendering.templates import (
+    NormalOrder,
+    get_template,
+    render_normal_order,
+)
 
 
 class NormalStrategy(TemplateStrategy):
@@ -20,7 +22,6 @@ class NormalStrategy(TemplateStrategy):
         return get_template(template_name)
 
     def render_order(self, order: Order) -> tuple[str, str]:
-        template = get_template(f"{order.order_type.value}.j2", self.template_file)
         normal_order = NormalOrder(
             pay_time=order.pay_time,
             peer=order.peer,
@@ -40,12 +41,11 @@ class NormalStrategy(TemplateStrategy):
             metadata=order.meta_data,
             tags=order.tags,
         )
-        try:
-            data = template.render(**vars(normal_order))
-        except JinjaError as error:
-            raise TemplateError(
-                f"模板渲染失败: {error}；可用变量见 fa template fields"
-            ) from error
+        data = render_normal_order(
+            normal_order,
+            template_name=f"{order.order_type.value}.j2",
+            template_file=self.template_file,
+        )
 
         if "收益发放" in normal_order.item:
             return "income", data

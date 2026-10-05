@@ -233,6 +233,8 @@ foreign-credit-card-repayments:
 
 ## 7. 月度订阅 JSON
 
+订阅与账单共用 `normal.j2` 和渲染入口，可用同一 YAML `template-file` 或本次 `--template` 覆盖。分录采用 4 空格缩进，账户左对齐、金额右对齐、币种同列。默认账户列宽 55、金额列宽 10；长度超出时自动扩宽同一分录的两行。订阅保留配置金额的全部精度，身份和月份放在 `metadata` 中；自定义模板必须输出这些去重元数据。
+
 用 `fa subscriptions init` 创建暂停示例。JSON 顶层是数组，每项一笔固定计划：
 
 ```json

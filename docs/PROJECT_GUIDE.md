@@ -111,8 +111,8 @@ core 不读取 YAML，不依赖 pandas/Jinja2/Typer/Beancount，也不导入具�
 | runtime.py | 外部状态目录及旧 .fane 状态迁移检查 |
 | rendering/strategy.py | 模板策略兼容基类 |
 | rendering/normal.py | Order → 模板变量，渲染文本并选择历史文件分组 kind |
-| rendering/templates.py | 模板变量结构、包资源/外部文件加载、缺失和语法错误 |
-| rendering/normal.j2 | 真正的内置 Beancount 模板 |
+| rendering/templates.py | 账单/订阅共用变量结构和渲染入口、包资源/外部文件加载、字符串转义和数字精度 |
+| rendering/normal.j2 | 账单与订阅唯一的内置 Beancount 模板，统一列宽和元数据格式 |
 | ledger/balance.py | 读取账户余额，供还款工作流使用 |
 | ledger/validation.py | Beancount + include/账户/币种/元数据业务校验 |
 | ledger/assertions.py | 日初余额断言、断言文件和 include 更新 |
@@ -215,7 +215,7 @@ flowchart TD
 
 分类外部决策链：`fa classify extract → 外部人工/AI → decisions.json → fa classify apply → 文件与规则修改 → validators → 成功或恢复`。
 
-订阅链：`subscriptions.json → SubscriptionService → 月度日期/去重 → Beancount 分录 → --write 更新 journal/include → 加载校验或恢复`。订阅有自己的固定格式渲染，当前不使用账单 normal.j2；--template 只覆盖 bill 命令。
+订阅链：`subscriptions.json → SubscriptionService → 月度日期/去重 → NormalOrder → render_normal_order → normal.j2 → --write 更新 journal/include → 加载校验或恢复`。账单与订阅共用模板和渲染入口，订阅不再拼接 Beancount 字符串。`--template` 和 YAML 的 `template-file` 都可以覆盖两类输出。4 空格缩进、默认 55 字符账户列和 10 字符金额列统一在模板中定义；同一分录遇到更长账户或金额时，两行一起扩宽，币种保持对齐。
 
 ## 13. 以后修改功能，从哪里入手
 

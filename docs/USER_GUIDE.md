@@ -256,7 +256,7 @@ fa subscriptions generate --subscriptions tools/auto_subscriptions.json --month 
 
 `.j2` 是 Jinja2 模板文件的常用后缀。模板描述 Beancount 文本格式，Python 提供交易变量并渲染它。它不负责读取账单、分类或导入。
 
-内置模板：`fane/infrastructure/rendering/normal.j2`。之前的 `package/template/normal.j2` 已移到这里。打包配置会将 `.j2` 放进 wheel；运行时通过包资源加载，因此从其他工作目录执行 `fa` 也能找到。
+账单和订阅共用一个内置模板：`fane/infrastructure/rendering/normal.j2`，并共用渲染入口。之前的 `package/template/normal.j2` 已移到这里。打包配置会将 `.j2` 放进 wheel；运行时通过包资源加载，因此从其他工作目录执行 `fa` 也能找到。
 
 ```sh
 fa template list
@@ -265,11 +265,14 @@ fa template fields --json
 fa template show --output /tmp/my-normal.j2
 fa template check --file /tmp/my-normal.j2
 fa bill convert --provider wechat --source /path/to/wechat.xlsx --template /tmp/my-normal.j2
+fa subscriptions generate --month 2026-10 --template /tmp/my-normal.j2 --json
 ```
 
-长期开启可在 YAML 写 `template-file: templates/my-normal.j2`，相对路径以 YAML 所在目录解析。本次 `--template` 优先于 YAML，YAML 优先于内置模板。convert/inspect/import/sync 都支持覆盖模板。
+长期开启可在 YAML 写 `template-file: templates/my-normal.j2`，账单和订阅同时读取这个配置，相对路径以 YAML 所在目录解析。本次 `--template` 优先于 YAML，YAML 优先于内置模板。账单 convert/inspect/import/sync 和 subscriptions generate 都支持覆盖模板。
 
-常见变量：`pay_time` 日期时间、`peer` 商户、`item` 商品说明、`money` 金额、`currency` 币种、`plus_account`/`minus_account` 账户、`metadata` 字典、`tags` 列表；全量变量用 `template fields` 查看。内置模板还处理佣金及自定义记账字符串。
+常见变量：`pay_time` 日期时间、`peer` 商户、`item` 商品说明、`money` 金额、`currency` 币种、`plus_account`/`minus_account` 账户、`metadata` 字典、`tags` 列表；全量变量用 `template fields` 查看。内置模板还处理佣金及自定义记账字符串。`amount_precision` 默认 2，订阅为 null，保留配置的全部金额精度。`bean_quote` 过滤器按 Beancount 字符串规则转义引号、反斜杠和换行，`amount` 过滤器按指定精度输出数字。
+
+订阅通过同一组变量传入商户、说明和账户，去重信息放在 `metadata` 中。自定义模板必须保留 `subscription_id`、`period` 等元数据；如果正式写入后无法识别订阅身份，Fane 会回滚这次写入。
 
 ```jinja2
 {{ pay_time.strftime('%Y-%m-%d') }} * "{{ peer }}" "{{ item }}"

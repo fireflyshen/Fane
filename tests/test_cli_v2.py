@@ -416,6 +416,61 @@ class PublicCliTest(unittest.TestCase):
             0,
         )
 
+    def test_bill_and_subscriptions_share_yaml_template_and_cli_override(self):
+        from fane.infrastructure.rendering.templates import template_source
+
+        self.plan()
+        flags = self.bill()
+        directory = self.root / "templates"
+        directory.mkdir()
+        shared = directory / "shared.j2"
+        shared.write_text("; shared-config-template\n" + template_source())
+        override = directory / "override.j2"
+        override.write_text("; cli-template\n" + template_source())
+        self.config.write_text(
+            self.config.read_text() + "template-file: templates/shared.j2\n"
+        )
+        for extra, marker in [
+            ([], "shared-config-template"),
+            (["--template", str(override)], "cli-template"),
+        ]:
+            bill = self.success("bill", "convert", *flags, *extra)
+            preview = json.loads(
+                self.success(
+                    "subscriptions", "generate", "--month", "2026-02", "--json", *extra
+                )
+            )
+            self.assertIn(marker, bill)
+            self.assertIn(marker, preview["entries"][0]["content"])
+            before = self.snapshot()
+            written = json.loads(
+                self.success(
+                    "subscriptions", "generate", "--month", "2026-02", "--json",
+                    "--write", *extra
+                )
+            )
+            self.assertIn(marker, self.month.read_text())
+            self.assertEqual(written["entries"], preview["entries"])
+            for name, content in before.items():
+                (self.root / name).write_bytes(content)
+
+    def test_subscription_template_without_identity_rolls_back(self):
+        self.plan()
+        template = self.root / "no-metadata.j2"
+        template.write_text(
+            '{{ pay_time.strftime("%Y-%m-%d") }} * {{ peer | bean_quote }} '
+            '{{ item | bean_quote }}\n'
+            '    Expenses:Subscriptions 10.00 CNY\n'
+            '    Assets:Cash -10.00 CNY\n'
+        )
+        before = self.snapshot()
+        result = self.run_cli(
+            "subscriptions", "generate", "--month", "2026-02", "--write",
+            "--template", str(template)
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.snapshot(), before)
+
     def test_subscription_unincluded_output_rolls_back(self):
         self.plan()
         self.ledger.write_text(
