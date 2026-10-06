@@ -1,5 +1,1 @@
-"""Composable bill and ledger tools."""
-
-from .compat import install
-
-install()
+"""账单与 Beancount 工具。"""

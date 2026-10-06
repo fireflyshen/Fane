@@ -8,10 +8,8 @@ import json
 import subprocess
 from pathlib import Path
 
-ROOT = Path.home() / ".flow"
 
-
-def handle(meta, config):
+def handle(meta, config, *, root: Path):
     raw = base64.b64decode(meta["body"], validate=True)
     expected = (
         "sha256=" + hmac.new(config["secret"].encode(), raw, hashlib.sha256).hexdigest()
@@ -28,7 +26,7 @@ def handle(meta, config):
         return 400, "Invalid JSON"
     if data.get("ref") != "refs/heads/" + config["branch"]:
         return 200, "Ignored branch"
-    lock = ROOT / "state/locks/n8n-finance.lock"
+    lock = root / "state/locks/n8n-finance.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     with lock.open("a") as handle:
         try:
@@ -53,4 +51,3 @@ def handle(meta, config):
             return 200, "Deploy success"
         except (OSError, subprocess.SubprocessError):
             return 500, "Deploy failed"
-

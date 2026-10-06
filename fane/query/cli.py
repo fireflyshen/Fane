@@ -7,15 +7,10 @@ from typing import Annotated
 
 import typer
 
-from fane.cli import app
 from fane.shared.context import LedgerOption, context
 from fane.shared.output import command_errors, output_json
 
-query_app = typer.Typer(no_args_is_help=True)
-app.add_typer(query_app, name="query")
 
-
-@query_app.command("run")
 def query(
     ctx: typer.Context,
     start: Annotated[str | None, typer.Argument(help="起始日期 YYYY-MM-DD")] = None,
@@ -46,7 +41,6 @@ def query(
         )
 
 
-@query_app.command("serve")
 def serve(
     ctx: typer.Context,
     ledger: LedgerOption = None,

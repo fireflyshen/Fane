@@ -54,7 +54,7 @@ fa sub generate --ledger /root/.flow/data/account/main.bean --subscriptions /roo
 来源、模板、去重和分类仍由 Fane 决定。账单与回调共享文件锁，避免同步仓库时覆盖正在写入的账单。
 日期使用 Asia/Shanghai。历史压缩包和去重状态保留；从失败执行重试或重新发送原邮件可以补处理。
 
-SSH 节点只调用安装后的 `fa flow bill`、`fa flow sync`、`fa flow report`、`fa flow commit`。
+架构约束：SSH 节点只调用安装后的 `fa flow bill`、`fa flow sync`、`fa flow report`、`fa flow commit`。
 解压代码属于 `fane/bill/archive.py`，编排与报告状态属于可拆卸的 `fane/flow/`，均随 Fane 安装包发布；不再单独复制 Python 脚本。
 工具安装在 `/opt/flow`，系统入口在 `/usr/local/bin`；`.flow` 只保留配置、数据和状态。运维备份在 `/var/backups/flow`，缓存在 `/var/cache/flow`。启动和检查使用 `flova service start/check`。
 
@@ -67,7 +67,8 @@ printf '%s' '{"analysisMonth":"2026-09"}' | fa flow report prepare
 
 ## GitHub 回调
 
-原地址仍为端口 `58129` 的 `/bills-webhook`，Caddy 转发到 n8n `/webhook/bills-sync`。
+端口 `58129` 是既有 GitHub 账本同步 webhook 的兼容入口。GitHub 推送通知访问 `/bills-webhook`，Caddy 将它改写并转发到 n8n `/webhook/bills-sync`，再完成账本同步。
+它与 Fane 查询服务无关。当前保留它以保持现有 GitHub 回调正常；如需取消，应先把 GitHub 回调地址改到现有 HTTPS 域名的 webhook 路径。
 验签针对原始请求字节，密钥位于私有 `config/n8n-sync.json`；签名错误返回 401，JSON 错误返回 400，其他事件与分支返回 200 并忽略。
 同步成功后在同一流程记录财务变化，立即回应 GitHub，不等待模型分析。
 旧 `/webhook/bill-monthly-report` 验证回调仍保留，仅记录变化；`dryRun` 不写观察记录或发送邮件。
@@ -76,7 +77,21 @@ Fava 继续读取同一账本目录。当前同步由 GitHub push 回调承担�
 
 ## 查询
 
-`fane:2.1.0` 与 n8n 同属 `caddy_net`，账本只读挂载到 `/bills`，提供 `/health` 和 `/query`。
+rn 的 Fane 使用 `uv tool install` 安装，安装目录是 `/opt/flow/tools/fane`；查询进程由 `fane.service` 管理，开机自动启动。服务器不运行 Fane Docker 容器。
+服务只监听 Docker 内部网关的 8080 端口。n8n 通过 `extra_hosts: ["fane:host-gateway"]` 访问宿主机，继续使用 `http://fane:8080/query`；工作流和查询格式不变。
+服务定义来自项目 `deploy/fane.service`，配置文件为服务器的 `config/fane.env`。Flova 的服务清单登记 `fane.service`，迁移时带走 uv 安装及服务配置。
+
+```bash
+systemctl status fane
+systemctl restart fane
+```
+
+项目保留 Docker 安装方式，其他环境可以从项目根目录执行：
+
+```bash
+docker build -f deploy/Dockerfile -t fane .
+docker run --rm -p 8080:8080 -v "$PWD/ledger:/bills:ro" fane
+```
 
 ```bash
 fa query 2026-09-01 2026-09-30 --ledger /root/.flow/data/account/main.bean
@@ -118,7 +133,7 @@ node integrations/n8n/test_report.js --preview
 python -m unittest discover -s integrations/n8n -p test_monthly.py
 ```
 
-生产调用 `fa flow report`，核算直接复用同一安装包中的账本查询函数。
+生产调用 `fa flow report`，核算直接复用同一安装包中的账本查询函数。`fa flow bill` 也直接复用转换、分类和订阅业务函数；不添加独立执行脚本。
 工作流导出含私有配置，应仅保存到私有目录；草稿与发布版分别更新。
 示例预览全部使用虚构数据。发布前验证首期/历史复盘、现有模型 JSON 输出及 320–1280 像素布局，不向真实收件人发送测试邮件。
 流程优化回退材料保存在 `/var/backups/flow/report-20261006/`；样式调整前的草稿、发布版和数据库另存于 `/var/backups/flow/report-style-20261006/`。

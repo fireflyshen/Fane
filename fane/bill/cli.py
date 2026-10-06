@@ -1,4 +1,4 @@
-"""The canonical bill commands; legacy root commands remain compatibility aliases."""
+"""账单命令，默认预览，显式 --write 才写入。"""
 
 import json
 import sys
@@ -9,16 +9,16 @@ from typing import Annotated
 
 import typer
 
-from fane.cli import app, get_cli_context
+from fane.shared.context import get_cli_context
+from fane.shared.errors import SyncError
 from fane.shared.journal.writer import JournalWriter
 from fane.shared.output import ConversionFormat, command_errors, output_text
 from fane.shared.results import RenderedEntry
 
-from .jobs import sync_job
-from .legacy import _convert_bill, _echo_summary, _entry_to_json, inspect_bill
+from .conversion import Converter, provider_names
+from .sync import SyncReport, SyncService
 
 bill_app = typer.Typer(help="转换、检查、预览或写入第三方账单。", no_args_is_help=True)
-app.add_typer(bill_app, name="bill")
 ProviderOption = Annotated[
     str, typer.Option("--provider", "-p", help="账单来源；用 fa providers list 查看")
 ]
@@ -45,7 +45,9 @@ def convert(
 ):
     """只转换、不导入；默认输出 Beancount 文本。"""
     with command_errors("转换失败"):
-        result = _convert_bill(ctx, provider, str(source), template)
+        result = Converter(get_cli_context(ctx).config, template).convert(
+            provider, str(source)
+        )
         entries = sorted(result.entries, key=lambda entry: (entry.date, entry.content))
         rows = [{**asdict(entry), "date": entry.date.isoformat()} for entry in entries]
         if output_format == ConversionFormat.beancount:
@@ -54,8 +56,6 @@ def convert(
             content = json.dumps(rows, ensure_ascii=False, indent=2)
         elif output_format == ConversionFormat.jsonl:
             content = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
-        else:
-            content = json.dumps(result.grouped(), ensure_ascii=False)
         output_text(content, output)
 
 
@@ -68,7 +68,23 @@ def inspect(
     template: TemplateOption = None,
 ):
     """只读检查条数、月份和待分类交易。"""
-    inspect_bill(ctx, provider, str(source), as_json, template)
+    with command_errors("检查失败"):
+        summary = (
+            Converter(get_cli_context(ctx).config, template)
+            .convert(provider, str(source))
+            .summary()
+        )
+        if as_json:
+            typer.echo(json.dumps(summary, ensure_ascii=False))
+        else:
+            typer.echo(f"来源: {summary['provider']}\n账单: {summary['source']}")
+            _echo_summary(summary)
+            typer.echo(
+                "月份: "
+                + ", ".join(
+                    f"{month}={count}" for month, count in summary["months"].items()
+                )
+            )
 
 
 @bill_app.command("import")
@@ -98,7 +114,9 @@ def import_entries(
 ):
     """预览导入计划；加 --write 才写入账本与去重索引。"""
     with command_errors("导入失败"):
-        result = _convert_bill(ctx, provider, str(source), template)
+        result = Converter(get_cli_context(ctx).config, template).convert(
+            provider, str(source)
+        )
         inspection = result.summary()
         if summary:
             _echo_summary(inspection, err=True)
@@ -134,9 +152,26 @@ def sync(
     template: TemplateOption = None,
 ):
     """按任务配置预览或增量同步多个来源。"""
-    sync_job(
-        ctx, job, run_date, not write, as_json, rescan, require_classified, template
-    )
+    with command_errors("同步失败"):
+        config = get_cli_context(ctx).config
+        task = (config.jobs or {}).get(job)
+        if task is None:
+            available = ", ".join(sorted(config.jobs or {})) or "(未配置 jobs)"
+            raise SyncError(f"未找到同步任务 {job!r}；可选值: {available}")
+        try:
+            day = date.fromisoformat(run_date) if run_date else None
+        except ValueError as error:
+            raise SyncError("--date 必须使用 YYYY-MM-DD 格式") from error
+        report = SyncService(config, job, task, template_file=template).run(
+            run_date=day,
+            dry_run=not write,
+            rescan=rescan,
+            require_classified=True if require_classified else None,
+        )
+        if as_json:
+            typer.echo(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
+        else:
+            _print_report(report)
 
 
 @bill_app.command("jobs")
@@ -202,3 +237,41 @@ def ingest(
         else:
             for entry in writer.plan(entries):
                 typer.echo(_entry_to_json(entry))
+
+
+providers_app = typer.Typer(help="支持的账单来源。", no_args_is_help=True)
+
+
+@providers_app.command("list")
+def providers(as_json: Annotated[bool, typer.Option("--json")] = False):
+    names = list(provider_names())
+    typer.echo(json.dumps(names, ensure_ascii=False) if as_json else "\n".join(names))
+
+
+def _entry_to_json(entry) -> str:
+    return json.dumps(
+        {**asdict(entry), "date": entry.date.isoformat()}, ensure_ascii=False
+    )
+
+
+def _echo_summary(summary, *, err=False):
+    typer.echo(
+        f"检查摘要: 共 {summary['total']} 条，支出 {summary['expense']}，收入 {summary['income']}，待分类 {summary['unmatched']}",
+        err=err,
+    )
+
+
+def _print_report(report: SyncReport) -> None:
+    typer.echo(f"同步任务: {report.job} ({report.date})")
+    for source in report.sources:
+        location = f" -> {source.path}" if source.path else ""
+        typer.echo(
+            f"- {source.source_id}: {source.status}{location}"
+            f"，交易 {source.entries}，待分类 {source.unmatched}"
+        )
+    typer.echo(
+        f"结果: {report.status}，读取 {report.total}，"
+        f"计划 {report.planned}，实际写入 {report.written}，去重 {report.skipped}"
+    )
+    for target, count in report.targets.items():
+        typer.echo(f"  {target}: +{count}")

@@ -1,13 +1,10 @@
 from datetime import date
-from typing import Protocol
 
-
-class QueryGateway(Protocol):
-    def query(self, start, end, limit): ...
+from .engine import BeancountQuery
 
 
 class LedgerService:
-    def __init__(self, gateway: QueryGateway):
+    def __init__(self, gateway: BeancountQuery):
         self.gateway = gateway
 
     def execute(self, payload):

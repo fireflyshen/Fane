@@ -11,13 +11,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 from beancount import loader
-from fane.core.errors import TemplateError
-from fane.entrypoints.cli import app
-from fane.infrastructure.rendering import templates
 from jinja2 import DictLoader, Environment
 from openpyxl import Workbook
 from typer.main import get_command
 from typer.testing import CliRunner
+
+from fane.cli import app
+from fane.shared.errors import TemplateError
+from fane.shared.render import templates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -197,16 +198,8 @@ class PublicCliTest(unittest.TestCase):
             else:
                 leaves.append(path)
 
-        from importlib import import_module
-
-        from fane.modules import COMMANDS
-        for definition in COMMANDS.values():
-            import_module(definition[1])
         visit(get_command(app))
         self.assertGreaterEqual(len(leaves), 26)
-        leaves = [("query",) if path == ("query", "run") else
-                  ("serve",) if path == ("query", "serve") else path
-                  for path in leaves]
         reference = (ROOT / "docs" / "cli.md").read_text()
         registered = get_command(app)
         for path in leaves:
@@ -215,10 +208,7 @@ class PublicCliTest(unittest.TestCase):
                 self.assertIn(heading + "\n", reference)
                 section = reference.split(heading + "\n", 1)[1].split("\n## ", 1)[0]
                 command = registered
-                destination = ("query", "run") if path == ("query",) else (
-                    ("query", "serve") if path == ("serve",) else path
-                )
-                for name in destination:
+                for name in path:
                     command = command.commands[name]
                 for parameter in command.params:
                     if not getattr(parameter, "hidden", False):
@@ -262,10 +252,6 @@ class PublicCliTest(unittest.TestCase):
             json.loads(self.success("bill", "convert", *flags, "--format", "jsonl")),
             rows[0],
         )
-        legacy = json.loads(
-            self.success("bill", "convert", *flags, "--format", "legacy-json")
-        )
-        self.assertIn("02", legacy["expense"])
         template = self.root / "custom.j2"
         self.success("template", "show", "--output", str(template))
         template.write_text("; 自定义模板\n" + template.read_text())
@@ -427,7 +413,7 @@ class PublicCliTest(unittest.TestCase):
         )
 
     def test_bill_and_subscriptions_share_yaml_template_and_cli_override(self):
-        from fane.infrastructure.rendering.templates import template_source
+        from fane.shared.render.templates import template_source
 
         self.plan()
         flags = self.bill()
@@ -455,8 +441,13 @@ class PublicCliTest(unittest.TestCase):
             before = self.snapshot()
             written = json.loads(
                 self.success(
-                    "subscriptions", "generate", "--month", "2026-02", "--json",
-                    "--write", *extra
+                    "subscriptions",
+                    "generate",
+                    "--month",
+                    "2026-02",
+                    "--json",
+                    "--write",
+                    *extra,
                 )
             )
             self.assertIn(marker, self.month.read_text())
@@ -469,14 +460,19 @@ class PublicCliTest(unittest.TestCase):
         template = self.root / "no-metadata.j2"
         template.write_text(
             '{{ pay_time.strftime("%Y-%m-%d") }} * {{ peer | bean_quote }} '
-            '{{ item | bean_quote }}\n'
-            '    Expenses:Subscriptions 10.00 CNY\n'
-            '    Assets:Cash -10.00 CNY\n'
+            "{{ item | bean_quote }}\n"
+            "    Expenses:Subscriptions 10.00 CNY\n"
+            "    Assets:Cash -10.00 CNY\n"
         )
         before = self.snapshot()
         result = self.run_cli(
-            "subscriptions", "generate", "--month", "2026-02", "--write",
-            "--template", str(template)
+            "subscriptions",
+            "generate",
+            "--month",
+            "2026-02",
+            "--write",
+            "--template",
+            str(template),
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.snapshot(), before)

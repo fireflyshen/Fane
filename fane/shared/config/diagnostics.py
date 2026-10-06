@@ -133,7 +133,7 @@ def _check_jobs(
     report: DiagnosticReport, jobs: Any, supported_providers: tuple[str, ...]
 ) -> None:
     if jobs is None:
-        report.info.append("sync: 未配置 jobs；trans/import 仍可正常使用")
+        report.info.append("sync: 未配置 jobs；bill convert/import 仍可正常使用")
         return
     if not isinstance(jobs, dict):
         return

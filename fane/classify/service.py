@@ -589,7 +589,6 @@ def _apply_changes(
     *,
     config_path: Path,
     dry_run: bool,
-    fane_command: str | None,
     validators: list[str],
 ) -> dict[str, Any]:
     files: dict[Path, str] = {}
@@ -663,12 +662,6 @@ def _apply_changes(
     try:
         for path, content in files.items():
             _atomic_write(path, content)
-        if fane_command:
-            _run_command(
-                [fane_command, "-c", str(config_path), "doctor"],
-                root,
-                "Fane doctor",
-            )
         for validator in validators:
             command = shlex.split(validator)
             if not command:
@@ -682,3 +675,32 @@ def _apply_changes(
                 path.write_bytes(content)
         raise
     return result
+
+
+def apply_decisions(
+    root: Path,
+    payload: dict[str, Any],
+    *,
+    config_path: Path,
+    ledger: Path,
+    write: bool = False,
+    min_confidence: float = 0.92,
+    allow_partial: bool = False,
+    validators: list[str] | None = None,
+    check_config: bool = True,
+) -> dict[str, Any]:
+    """CLI 和账单流程共用的分类校验、写入及失败回滚。"""
+    decisions = validate_decisions(
+        root, payload, min_confidence=min_confidence, allow_partial=allow_partial
+    )
+    command = [sys.executable, "-m", "fane", "--config", str(config_path)]
+    checks = (
+        list(validators)
+        if validators
+        else [shlex.join([*command, "check", "--ledger", str(ledger)])]
+    )
+    if check_config:
+        checks.insert(0, shlex.join([*command, "config", "check"]))
+    return _apply_changes(
+        root, decisions, config_path=config_path, dry_run=not write, validators=checks
+    )

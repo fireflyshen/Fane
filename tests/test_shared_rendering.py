@@ -5,7 +5,7 @@ from decimal import Decimal
 from beancount import loader
 from beancount.core.data import Transaction
 
-from fane.application.subscriptions import GeneratedEntry, Subscription
+from fane.subscriptions.service import GeneratedEntry, Subscription
 
 
 class SharedRenderingTest(unittest.TestCase):
@@ -29,8 +29,7 @@ class SharedRenderingTest(unittest.TestCase):
         )
         content = GeneratedEntry(sub, date(2026, 10, 5), "2026-10").render()
         entries, errors, _ = loader.load_string(
-            f"2020-01-01 open {debit} USD\n2020-01-01 open {credit} USD\n"
-            + content
+            f"2020-01-01 open {debit} USD\n2020-01-01 open {credit} USD\n" + content
         )
         self.assertEqual(errors, [])
         entry = next(e for e in entries if isinstance(e, Transaction))

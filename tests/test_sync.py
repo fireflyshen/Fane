@@ -7,13 +7,12 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "main.py", *arguments],
+        [sys.executable, "-m", "fane", *arguments],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -74,10 +73,7 @@ def write_config(
         else ""
     )
     validators = (
-        "    validators:\n"
-        "      - command: [/usr/bin/false]\n"
-        if validator
-        else ""
+        "    validators:\n      - command: [/usr/bin/false]\n" if validator else ""
     )
     path.write_text(
         "default-minus-account: Assets:FIXME\n"
@@ -117,10 +113,26 @@ class SyncCliTest(unittest.TestCase):
             write_config(config, source_template, journal)
 
             first = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
             unchanged = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
             write_wechat(
                 source,
@@ -130,14 +142,24 @@ class SyncCliTest(unittest.TestCase):
                 ],
             )
             changed = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
 
             old_text = (journal / "2025" / "2025-12.bean").read_text(encoding="utf-8")
             new_text = (journal / "2026" / "2026-01.bean").read_text(encoding="utf-8")
-            index_lines = (root / ".fane" / "imported.jsonl").read_text(
-                encoding="utf-8"
-            ).splitlines()
+            index_lines = (
+                (root / ".fane" / "imported.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            )
 
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertEqual(json.loads(first.stdout)["written"], 1)
@@ -156,7 +178,15 @@ class SyncCliTest(unittest.TestCase):
             write_config(config, root / "wechat-{date}.xlsx", root / "journal")
 
             result = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -171,12 +201,18 @@ class SyncCliTest(unittest.TestCase):
             config = root / "config.yaml"
             journal = root / "journal"
             write_wechat(source, [("2026-01-05 08:00:00", "unclassified")])
-            write_config(
-                config, root / "wechat-{date}.xlsx", journal, classified=False
-            )
+            write_config(config, root / "wechat-{date}.xlsx", journal, classified=False)
 
             result = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
 
             state_exists = (root / ".fane" / "sync-state.json").exists()
@@ -196,7 +232,15 @@ class SyncCliTest(unittest.TestCase):
             write_wechat(source, [("2026-01-05 08:00:00", "existing")])
             write_config(config, root / "wechat-{date}.xlsx", journal)
             initial = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
             target = journal / "2026" / "2026-01.bean"
             index = root / ".fane" / "imported.jsonl"
@@ -218,7 +262,15 @@ class SyncCliTest(unittest.TestCase):
             )
 
             result = run_cli(
-                "--config", str(config), "sync", "daily", "--date", "2026-01-05", "--json"
+                "--config",
+                str(config),
+                "bill",
+                "sync",
+                "daily",
+                "--write",
+                "--date",
+                "2026-01-05",
+                "--json",
             )
 
             after = (target.read_bytes(), index.read_bytes(), state.read_bytes())

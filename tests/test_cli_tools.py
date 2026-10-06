@@ -3,24 +3,19 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 
 from openpyxl import Workbook
 
-from ir.ir import IR, Order, Type
-from package.compiler.compiler import Compiler
-from package.config import Config
-from package.parser.ali.alipay import AlipayAnalyser
-from package.strategy.template.normal import NormalStrategy
+from fane.bill.conversion import Converter
+from fane.shared.config import Config
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "main.py", *arguments],
+        [sys.executable, "-m", "fane", *arguments],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -31,7 +26,7 @@ class CliToolTest(unittest.TestCase):
     def test_subcommand_help_does_not_require_config(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             missing = str(Path(directory) / "missing.yaml")
-            result = run_cli("--config", missing, "trans", "--help")
+            result = run_cli("--config", missing, "convert", "--help")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--provider", result.stdout)
@@ -46,9 +41,9 @@ class CliToolTest(unittest.TestCase):
     def test_init_and_doctor_work_before_config_exists(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "nested" / "config.yaml"
-            initialized = run_cli("--config", str(config), "init")
-            diagnosed = run_cli("--config", str(config), "doctor")
-            duplicate = run_cli("--config", str(config), "init")
+            initialized = run_cli("--config", str(config), "config", "init")
+            diagnosed = run_cli("--config", str(config), "config", "check")
+            duplicate = run_cli("--config", str(config), "config", "init")
 
         self.assertEqual(initialized.returncode, 0, initialized.stderr)
         self.assertTrue(config.parent.name == "nested")
@@ -69,8 +64,8 @@ class CliToolTest(unittest.TestCase):
                 "legacy-custom-field: true\n",
                 encoding="utf-8",
             )
-            compatible = run_cli("--config", str(config), "doctor")
-            strict = run_cli("--config", str(config), "doctor", "--strict")
+            compatible = run_cli("--config", str(config), "config", "check")
+            strict = run_cli("--config", str(config), "config", "check", "--strict")
 
         self.assertEqual(compatible.returncode, 0, compatible.stderr)
         self.assertIn("未识别字段", compatible.stdout)
@@ -129,7 +124,7 @@ class CliToolTest(unittest.TestCase):
             translated = run_cli(
                 "--config",
                 str(config),
-                "trans",
+                "convert",
                 "--provider",
                 "wechat",
                 "--source",
@@ -140,6 +135,7 @@ class CliToolTest(unittest.TestCase):
             first_import = run_cli(
                 "--config",
                 str(config),
+                "bill",
                 "import",
                 "--provider",
                 "wechat",
@@ -148,10 +144,12 @@ class CliToolTest(unittest.TestCase):
                 "--journal-dir",
                 str(journal),
                 "--require-classified",
+                "--write",
             )
             second_import = run_cli(
                 "--config",
                 str(config),
+                "bill",
                 "import",
                 "--provider",
                 "wechat",
@@ -160,6 +158,7 @@ class CliToolTest(unittest.TestCase):
                 "--journal-dir",
                 str(journal),
                 "--require-classified",
+                "--write",
             )
 
             row = json.loads(translated.stdout)
@@ -174,7 +173,7 @@ class CliToolTest(unittest.TestCase):
         self.assertIn("Assets:Cash:WeChat", imported_text)
 
 
-class CompilerReuseTest(unittest.TestCase):
+class ConverterReuseTest(unittest.TestCase):
     def test_repeated_build_does_not_duplicate_entries(self) -> None:
         config = Config.model_validate(
             {
@@ -183,27 +182,16 @@ class CompilerReuseTest(unittest.TestCase):
                 "default-currency": "CNY",
             }
         )
-        order = Order(
-            pay_time=datetime(2026, 8, 2, 12, 0, 0),
-            peer="测试商户",
-            item="测试消费",
-            money=Decimal("12.34"),
-            method="余额",
-            type=Type.SEND,
-        )
-        compiler = Compiler(
-            "alipay",
-            config,
-            IR(orders=[order]),
-            NormalStrategy(),
-            AlipayAnalyser(),
-        )
-
-        first = compiler.build_result()
-        second = compiler.build_result()
-
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "alipay.csv"
+            source.write_text(
+                "交易时间,交易分类,交易订单号,商家订单号,交易对方,商品说明,对方账号,金额,收/支,交易状态,收/付款方式,备注\n2026-08-02 12:00:00,餐饮,id,merchant,店,午餐,账号,12.34,支出,支付成功,余额,\n"
+            )
+            converter = Converter(config)
+            first = converter.convert("alipay", str(source))
+            second = converter.convert("alipay", str(source))
         self.assertEqual(first, second)
-        self.assertEqual(len(second["expense"]["08"]), 1)
+        self.assertEqual(len(second.entries), 1)
 
 
 if __name__ == "__main__":

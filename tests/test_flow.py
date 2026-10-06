@@ -1,8 +1,9 @@
 """Financial snapshot and bill archive contracts using fictional local data."""
-from decimal import Decimal
+
 import tempfile
 import unittest
 import zipfile
+from decimal import Decimal
 from pathlib import Path
 
 from fane.bill.archive import unpack
@@ -16,10 +17,16 @@ class FlowTests(unittest.TestCase):
             source = '2026-01-01 open Assets:Bank CNY\n2026-01-01 open Expenses:Food CNY\n2026-09-01 * "Shop" "Lunch"\n  Expenses:Food 12.34 CNY\n  Assets:Bank -12.34 CNY\n'
             path.write_text(source)
             before = snapshot(path)
-            path.write_text(source.replace('"Lunch"', '"Updated note"').replace("12.34", "12.340") + "; comment\n")
+            path.write_text(
+                source.replace('"Lunch"', '"Updated note"').replace("12.34", "12.340")
+                + "; comment\n"
+            )
             after = snapshot(path)
             self.assertEqual(before["hashes"], after["hashes"])
-            self.assertEqual(Decimal(before["facts"]["2026-09"]["totals"]["expenses"]["net"]["CNY"]), Decimal(after["facts"]["2026-09"]["totals"]["expenses"]["net"]["CNY"]))
+            self.assertEqual(
+                Decimal(before["facts"]["2026-09"]["totals"]["expenses"]["net"]["CNY"]),
+                Decimal(after["facts"]["2026-09"]["totals"]["expenses"]["net"]["CNY"]),
+            )
             path.write_text(source.replace("12.34", "15.00"))
             self.assertNotEqual(before["hashes"], snapshot(path)["hashes"])
 

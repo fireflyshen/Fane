@@ -8,10 +8,10 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from package.ledger.assertions import calculate_balances, write_assertions
-from package.ledger.settings import Policy, resolve_context
-from package.ledger.snapshot import export_snapshot
-from package.ledger.validation import validate_ledger
+from fane.ledger.assertions import calculate_balances, write_assertions
+from fane.ledger.snapshot import export_snapshot
+from fane.shared.check import validate_ledger
+from fane.shared.config.ledger import Policy, resolve_context
 
 LEDGER = """option "operating_currency" "EUR"
 2000-01-01 open Assets:Wallet EUR
@@ -33,7 +33,7 @@ class LedgerIntegrationTest(unittest.TestCase):
 
     def cli(self, *args, env=None):
         return subprocess.run(
-            [sys.executable, "-m", "package.cmd", *args],
+            [sys.executable, "-m", "fane", *args],
             cwd=self.root,
             capture_output=True,
             text=True,
@@ -130,7 +130,7 @@ class LedgerIntegrationTest(unittest.TestCase):
         output.write_text("original output")
         index.write_text("original index")
         with patch(
-            "package.ledger.assertions.update_index", side_effect=OSError("failure")
+            "fane.ledger.assertions.update_index", side_effect=OSError("failure")
         ):
             with self.assertRaises(OSError):
                 write_assertions(output, index, "replacement")
@@ -138,7 +138,7 @@ class LedgerIntegrationTest(unittest.TestCase):
         self.assertEqual(index.read_text(), "original index")
 
     def test_import_runtime_state_stays_outside_ledger_and_legacy_is_not_ignored(self):
-        from package.runtime import ensure_state_migrated, state_directory
+        from fane.shared.runtime import ensure_state_migrated, state_directory
 
         external = self.root / "external-state"
         with patch.dict(os.environ, {"FANE_STATE_HOME": str(external)}):
@@ -155,7 +155,7 @@ class LedgerIntegrationTest(unittest.TestCase):
     def test_serve_uses_fava_from_same_environment_without_path_dependency(self):
         from typer.testing import CliRunner
 
-        from package.cmd import app
+        from fane.cli import app
 
         entry = Mock()
         with patch("importlib.metadata.entry_points", return_value=[entry]):
@@ -182,7 +182,7 @@ class LedgerIntegrationTest(unittest.TestCase):
             from botocore.exceptions import ClientError
         except ImportError:
             self.skipTest("cloud extra not installed")
-        from package.ledger.publishing import publish_snapshot
+        from fane.ledger.publishing import publish_snapshot
 
         client = Mock()
         kwargs = dict(

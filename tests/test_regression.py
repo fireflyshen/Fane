@@ -8,16 +8,16 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from ir.ir import IR, Order, Type
-from package.config import Config, init_config, load_config
-from package.errors import ConfigError, ProviderError
-from package.parser.ali.alipay import AlipayAnalyser
-from package.parser.wechat.wechat import WechatAnalyser
-from provider.ali.alipay import AliPay
-from provider.ali.ali_types import DealStatus
-from provider.ali.processor import post_process, read_account_balance
-from provider.wechat.wechat import Wechat
-from provider.wechat.wechat_types import TxType
+from fane.bill.providers.alipay.reader import AliPay
+from fane.bill.providers.alipay.types import DealStatus
+from fane.bill.providers.wechat.reader import Wechat
+from fane.bill.providers.wechat.types import TxType
+from fane.bill.repayments import post_process, read_account_balance
+from fane.bill.rules.alipay import AlipayAnalyser
+from fane.bill.rules.wechat import WechatAnalyser
+from fane.shared.config import Config, load_config, load_config_model
+from fane.shared.errors import ConfigError, ProviderError
+from fane.shared.models import IR, Order, Type
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,10 +35,13 @@ class CliRegressionTest(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                "main.py",
+                "-m",
+                "fane",
                 "--config",
                 config,
-                "trans",
+                "convert",
+                "--format",
+                "json",
                 "--provider",
                 provider,
                 "--source",
@@ -49,7 +52,10 @@ class CliRegressionTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        return json.loads(result.stdout)
+        groups = {"expense": {}, "income": {}}
+        for row in json.loads(result.stdout):
+            groups[row["kind"]].setdefault(row["month"], []).append(row["content"])
+        return groups
 
     def run_trans_without_foreign_repayments(
         self, provider: str, source: str
@@ -100,10 +106,13 @@ class CliRegressionTest(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                "main.py",
+                "-m",
+                "fane",
                 "--config",
                 "example/config.yaml",
-                "trans",
+                "convert",
+                "--format",
+                "json",
                 "--provider",
                 "alipay",
             ],
@@ -119,10 +128,13 @@ class CliRegressionTest(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                "main.py",
+                "-m",
+                "fane",
                 "--config",
                 "example/config.yaml",
-                "trans",
+                "convert",
+                "--format",
+                "json",
                 "--provider",
                 "wechat",
                 "--source",
@@ -148,10 +160,13 @@ class CliRegressionTest(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                "main.py",
+                "-m",
+                "fane",
                 "--config",
                 "example/config.yaml",
-                "trans",
+                "convert",
+                "--format",
+                "json",
                 "--provider",
                 "wechat",
                 "--source",
@@ -175,7 +190,8 @@ class CliRegressionTest(unittest.TestCase):
             first = subprocess.run(
                 [
                     sys.executable,
-                    "main.py",
+                    "-m",
+                    "fane",
                     "--config",
                     "example/config.yaml",
                     "import",
@@ -196,7 +212,8 @@ class CliRegressionTest(unittest.TestCase):
             second = subprocess.run(
                 [
                     sys.executable,
-                    "main.py",
+                    "-m",
+                    "fane",
                     "--config",
                     "example/config.yaml",
                     "import",
@@ -571,7 +588,7 @@ class RobustnessTest(unittest.TestCase):
     def test_empty_config_file_has_clear_error(self) -> None:
         with tempfile.NamedTemporaryFile("w", suffix=".yaml") as config_file:
             with self.assertRaisesRegex(ConfigError, "配置文件为空"):
-                init_config(config_file.name)
+                load_config_model(config_file.name)
 
     def test_alipay_missing_required_columns_has_clear_error(self) -> None:
         with tempfile.NamedTemporaryFile("w", suffix=".csv") as bill_file:

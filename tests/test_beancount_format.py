@@ -3,9 +3,9 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from package.compiler.results import RenderedEntry
-from package.compiler.writer import JournalWriter
-from package.template.template import get_template
+from fane.shared.journal.writer import JournalWriter
+from fane.shared.render.templates import get_template
+from fane.shared.results import RenderedEntry
 
 
 class BeancountFormatTest(unittest.TestCase):

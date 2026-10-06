@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,9 +19,6 @@ class WebhookTests(unittest.TestCase):
             "branch": "main",
             "repository": str(self.root),
         }
-        self.patcher = patch.object(sync, "ROOT", self.root)
-        self.patcher.start()
-        self.addCleanup(self.patcher.stop)
 
     def request(self, body=b"{}", event="push", secret="fixture"):
         meta = {
@@ -31,7 +27,7 @@ class WebhookTests(unittest.TestCase):
             "signature": "sha256="
             + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest(),
         }
-        return sync.handle(meta, self.config)
+        return sync.handle(meta, self.config, root=self.root)
 
     def test_invalid_signature_and_other_events_never_sync(self):
         with patch.object(sync.subprocess, "run") as run:

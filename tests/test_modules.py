@@ -94,7 +94,6 @@ class ModulesTest(unittest.TestCase):
                     shutil.rmtree(base / "fane" / other)
                 config, ledger, plan, source = self.fixture(base)
                 self.run_cli(base, "--help")
-                self.assertEqual(self.run_cli(base, "modules").strip(), feature)
                 commands = {
                     "bill": ["convert", "-p", "wechat", "-s", source, "-f", "jsonl"],
                     "classify": ["classify", "extract", "--root", base],
@@ -111,12 +110,24 @@ class ModulesTest(unittest.TestCase):
                 }
                 if feature == "flow":
                     (base / "config").mkdir()
-                    (base / "config/n8n-sync.json").write_text('{"secret":"fixture","branch":"main"}')
+                    (base / "config/n8n-sync.json").write_text(
+                        '{"secret":"fixture","branch":"main"}'
+                    )
                 if feature == "classify":
                     (base / "journal").mkdir()
                     (base / "accounts/data").mkdir(parents=True)
                 self.assertIsInstance(
-                    json.loads(self.run_cli(base, "-c", config, *commands[feature], input='{"body":"e30=","signature":"invalid"}' if feature=="flow" else None)),
+                    json.loads(
+                        self.run_cli(
+                            base,
+                            "-c",
+                            config,
+                            *commands[feature],
+                            input='{"body":"e30=","signature":"invalid"}'
+                            if feature == "flow"
+                            else None,
+                        )
+                    ),
                     dict,
                 )
                 if feature == "classify":
@@ -133,19 +144,52 @@ class ModulesTest(unittest.TestCase):
                         input='{"schema_version": 1, "decisions": []}',
                     )
 
-    def test_root_help_and_version_do_not_import_any_feature(self):
-        code = """import sys
-from typer.testing import CliRunner
-from fane.cli import app
-for args in (["--help"], ["--version"]):
-    assert CliRunner().invoke(app, args).exit_code == 0
-assert not any(name.startswith(tuple("fane." + part + "." for part in
-    ("bill", "classify", "subscriptions", "ledger", "query", "flow"))) for name in sys.modules)
-"""
-        result = subprocess.run(
-            [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+    def test_shared_commands_work_with_every_feature_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            shutil.copytree(
+                ROOT / "fane",
+                base / "fane",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+            for feature in FEATURES:
+                shutil.rmtree(base / "fane" / feature)
+            config = base / "fane.yaml"
+            self.run_cli(base, "--help")
+            self.run_cli(base, "--version")
+            self.run_cli(base, "-c", config, "config", "init")
+            self.run_cli(base, "-c", config, "config", "check")
+            self.assertIn("normal.j2", self.run_cli(base, "template", "list"))
+
+    def test_wechat_runs_with_alipay_physically_absent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            shutil.copytree(
+                ROOT / "fane",
+                base / "fane",
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+            shutil.rmtree(base / "fane/bill/providers/alipay")
+            config, _, _, source = self.fixture(base)
+            self.assertEqual(
+                json.loads(self.run_cli(base, "providers", "list", "--json")),
+                ["wechat"],
+            )
+            rows = json.loads(
+                self.run_cli(
+                    base,
+                    "-c",
+                    config,
+                    "convert",
+                    "-p",
+                    "wechat",
+                    "-s",
+                    source,
+                    "-f",
+                    "json",
+                )
+            )
+            self.assertEqual(rows[0]["fingerprint"], "wechat:fixture")
 
     def test_jsonl_pipeline_preserves_entries_and_deduplicates(self):
         with tempfile.TemporaryDirectory() as directory:

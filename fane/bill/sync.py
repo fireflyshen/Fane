@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from fane.bill.conversion import Converter, provider_names
 from fane.shared.config import Config, SourceConfig, SyncJob
-from fane.shared.conversion import ConversionService
 from fane.shared.errors import SyncError
 from fane.shared.journal.router import JournalRouter
 from fane.shared.journal.state import SyncLock, SyncState, sha256_file
@@ -54,10 +54,10 @@ class SyncService:
         job_name: str,
         job: SyncJob,
         *,
-        converter: ConversionService,
+        template_file: Path | None = None,
     ):
         self.config = config
-        self.converter = converter
+        self.converter = Converter(config, template_file)
         self.job_name = job_name
         self.job = job
         self.journal_dir = Path(job.journal_dir).expanduser()
@@ -241,8 +241,8 @@ class SyncService:
     def _compile(
         self, source: SourceConfig, path: Path
     ) -> tuple[list[RenderedEntry], int]:
-        if source.provider not in self.converter.providers:
-            supported = ", ".join(self.converter.providers)
+        if source.provider not in provider_names():
+            supported = ", ".join(provider_names())
             raise SyncError(
                 f"来源 {source.id} 使用不支持的 provider {source.provider!r}; "
                 f"可选值: {supported}"

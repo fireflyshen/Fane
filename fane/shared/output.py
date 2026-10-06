@@ -14,7 +14,6 @@ class ConversionFormat(str, Enum):
     beancount = "beancount"
     json = "json"
     jsonl = "jsonl"
-    legacy_json = "legacy-json"
 
 
 def output_text(content: str, output: str = "-") -> None:

@@ -4,15 +4,13 @@ from typing import Annotated
 
 import typer
 
-from fane.cli import app, get_cli_context
-from fane.shared.context import LedgerOption, context
+from fane.shared.context import LedgerOption, context, get_cli_context
 from fane.shared.output import command_errors, output_json, output_text
 from fane.subscriptions.service import SubscriptionService
 
 subscriptions_app = typer.Typer(
     help="创建订阅计划、检查账户和生成月度分录。", no_args_is_help=True
 )
-app.add_typer(subscriptions_app, name="subscriptions")
 SubscriptionsOption = Annotated[
     Path | None,
     typer.Option(

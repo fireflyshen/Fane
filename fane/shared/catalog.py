@@ -4,8 +4,6 @@ from typing import Annotated
 
 import typer
 
-from fane.cli import app
-from fane.modules import provider_names as supported_provider_names
 from fane.shared.output import command_errors, output_json, output_text
 from fane.shared.render.templates import (
     NormalOrder,
@@ -14,20 +12,9 @@ from fane.shared.render.templates import (
     template_source,
 )
 
-providers_app = typer.Typer(help="查看支持的账单来源。", no_args_is_help=True)
 template_app = typer.Typer(
     help="查看、导出和检查 Beancount Jinja2 模板。", no_args_is_help=True
 )
-app.add_typer(providers_app, name="providers")
-app.add_typer(template_app, name="template")
-
-
-@providers_app.command("list")
-def providers(
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 来源名称列表")] = False,
-):
-    names = list(supported_provider_names())
-    output_json(names) if as_json else output_text("\n".join(names))
 
 
 @template_app.command("list")

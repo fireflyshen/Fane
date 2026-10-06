@@ -1,7 +1,5 @@
 """Installed CLI for exporting and applying externally supplied classification decisions."""
 
-import shlex
-import sys
 from importlib.resources import files
 from pathlib import Path
 from typing import Annotated
@@ -9,14 +7,12 @@ from typing import Annotated
 import typer
 
 from fane.classify import service as fixme
-from fane.cli import app, get_cli_context
-from fane.shared.context import LedgerOption, context
+from fane.shared.context import LedgerOption, context, get_cli_context
 from fane.shared.output import command_errors, output_json, output_text
 
 classify_app = typer.Typer(
     help="导出待分类交易、查看决策格式、预览或应用外部分类结果。", no_args_is_help=True
 )
-app.add_typer(classify_app, name="classify")
 RootOption = Annotated[
     Path | None,
     typer.Option(
@@ -99,51 +95,16 @@ def apply(
         payload = fixme._load_decisions(
             None if input_base64 is not None else input_file, input_base64
         )
-        decisions = fixme.validate_decisions(
-            location,
-            payload,
-            min_confidence=min_confidence,
-            allow_partial=allow_partial,
-        )
-        checks = (
-            list(validators)
-            if validators
-            else [
-                shlex.join(
-                    [
-                        sys.executable,
-                        "-m",
-                        "fane",
-                        "--config",
-                        str(config_path),
-                        "check",
-                        "--ledger",
-                        str(ctx_ledger.ledger),
-                    ]
-                )
-            ]
-        )
-        if not skip_config_check:
-            checks.insert(
-                0,
-                shlex.join(
-                    [
-                        sys.executable,
-                        "-m",
-                        "fane",
-                        "--config",
-                        str(config_path),
-                        "config",
-                        "check",
-                    ]
-                ),
+        output_json(
+            fixme.apply_decisions(
+                location,
+                payload,
+                config_path=config_path,
+                ledger=ctx_ledger.ledger,
+                write=write,
+                min_confidence=min_confidence,
+                allow_partial=allow_partial,
+                validators=validators,
+                check_config=not skip_config_check,
             )
-        result = fixme._apply_changes(
-            location,
-            decisions,
-            config_path=config_path,
-            dry_run=not write,
-            fane_command=None,
-            validators=checks,
         )
-        output_json(result)

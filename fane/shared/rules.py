@@ -1,9 +1,9 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, time
-from decimal import Decimal
-from typing import Optional, Protocol
+from typing import Optional
 
+from fane.shared.config.rules import RuleBase
 from fane.shared.errors import ConfigError
 from fane.shared.matching import split_find_contains
 from fane.shared.models import Order, Type
@@ -16,19 +16,6 @@ RANGE_SEPARATORS = ("..", "~", " - ", ",")
 DAY_RANGE_SEPARATORS = ("..", "~", " - ", "-", ",")
 DATETIME_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d")
 TIME_FORMATS = ("%H:%M:%S", "%H:%M")
-
-
-class RuleLike(Protocol):
-    separator: Optional[str]
-    ignore: Optional[bool]
-    target_account: Optional[str]
-    method_account: Optional[str]
-    tags: Optional[str]
-    time: Optional[str]
-    day_range: Optional[str]
-    timestamp_range: Optional[str]
-    min_price: Optional[Decimal]
-    max_price: Optional[Decimal]
 
 
 @dataclass(frozen=True)
@@ -73,7 +60,7 @@ class RuleAccountResolver:
     def resolve(
         self,
         order: Order,
-        rules: Iterable[RuleLike],
+        rules: Iterable[RuleBase],
         default_minus_account: Optional[str],
         default_plus_account: Optional[str],
     ) -> AccountResult:
@@ -110,7 +97,7 @@ class RuleAccountResolver:
 
         return AccountResult(ignore, minus_account, plus_account, extra_account, tags)
 
-    def _matches_rule(self, rule: RuleLike, order: Order) -> bool:
+    def _matches_rule(self, rule: RuleBase, order: Order) -> bool:
         match = True
         separator = self._separator(rule)
         for field in self.match_fields:
@@ -125,7 +112,7 @@ class RuleAccountResolver:
             return False
         return self._matches_time_range(rule, order, match)
 
-    def _matches_amount_range(self, rule: RuleLike, order: Order, match: bool) -> bool:
+    def _matches_amount_range(self, rule: RuleBase, order: Order, match: bool) -> bool:
         if rule.min_price is None and rule.max_price is None:
             return match
         if rule.min_price is not None and rule.max_price is not None:
@@ -140,7 +127,7 @@ class RuleAccountResolver:
             return False
         return match
 
-    def _matches_time_range(self, rule: RuleLike, order: Order, match: bool) -> bool:
+    def _matches_time_range(self, rule: RuleBase, order: Order, match: bool) -> bool:
         if (
             rule.time is None
             and rule.day_range is None
@@ -252,7 +239,7 @@ class RuleAccountResolver:
             return start <= current <= end
         return current >= start or current <= end
 
-    def _separator(self, rule: RuleLike) -> str:
+    def _separator(self, rule: RuleBase) -> str:
         if rule.separator is not None:
             return rule.separator
         return ","
@@ -260,7 +247,7 @@ class RuleAccountResolver:
     def _resolve_accounts(
         self,
         order: Order,
-        rule: RuleLike,
+        rule: RuleBase,
         minus_account: Optional[str],
         plus_account: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
@@ -277,7 +264,7 @@ class RuleAccountResolver:
         return minus_account, plus_account
 
     def _resolve_extra_account(
-        self, rule: RuleLike, extra_account: ExtraAccounts
+        self, rule: RuleBase, extra_account: ExtraAccounts
     ) -> ExtraAccounts:
         for field in self.extra_account_fields:
             account = getattr(rule, field.rule_attr)

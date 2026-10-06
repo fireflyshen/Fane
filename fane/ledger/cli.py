@@ -7,11 +7,10 @@ from pathlib import Path
 import typer
 from typing_extensions import Annotated
 
-from fane import cli as root
 from fane.shared.context import LedgerOption, context, errors
+from fane.version import get_version
 
 app = typer.Typer(help="校验账本、生成余额断言、导出和发布快照。", no_args_is_help=True)
-root.app.add_typer(app, name="ledger")
 
 
 @app.command("validate")
@@ -224,7 +223,7 @@ def publish(
                 bucket=bucket,
                 key=key,
                 version=version,
-                generator_version=generator_version or root.get_version(),
+                generator_version=generator_version or get_version(),
                 force=force,
                 accrual_prefixes=ctx.settings.snapshot.accrual_offset_prefixes,
             )

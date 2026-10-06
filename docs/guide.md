@@ -15,7 +15,7 @@ fa [全局参数] <命令组> <动作> [动作参数]
 | 初始化 Fane YAML | `fa config init` | 创建配置；覆盖必须 `--force` |
 | 配置诊断 | `fa config check` | 只读；`--strict` 将警告也视为失败 |
 | 查看账单来源 | `fa providers list` | 当前支持 alipay、wechat |
-| 转换账单 | `fa bill convert` | Beancount / JSON / JSONL / 旧分组 JSON |
+| 转换账单 | `fa bill convert` | Beancount / JSON / JSONL |
 | 检查账单 | `fa bill inspect` | 条数、月份、未分类数量 |
 | 单文件导入 | `fa bill import` | 默认去重后的 JSONL 预览；`--write` 写入 |
 | 列出同步任务 | `fa bill jobs` | YAML 中配置的任务名 |
@@ -103,7 +103,6 @@ fa bill convert --provider wechat --source /path/to/wechat.xlsx --format jsonl
 - `beancount`：默认，输出完整分录文本。
 - `json`：数组；每项包含 `source_provider`、`source_file`、`order_id`、`date`、`month`、`kind`、`fingerprint`、`content`。
 - `jsonl`：每行一项，同上，便于流式处理。
-- `legacy-json`：历史 `expense` / `income` 按月份分组格式，仅用于旧消费者迁移。
 
 JSON/JSONL 也包含渲染后的 `content`，因此依然需要可用模板。未匹配账户通常进入 `Assets:FIXME` / `Expenses:FIXME`，不是自动推断分类。`inspect` 的 unmatched 指使用默认账户的交易数量，expense/income 是上述文件分组数量；完整分类规则见配置参考。
 
@@ -157,7 +156,7 @@ fa bill sync daily --rescan --json --write
 
 ## 4. tools 是什么，外部工具怎么调用
 
-`tools/` 原本是源码目录中的独立终端脚本。现在功能在安装包内，统一通过以下命令调用：
+分类与订阅属于安装包，统一通过以下命令调用：
 
 ```sh
 fa classify schema
@@ -373,4 +372,4 @@ print(summary["total"], summary["unmatched"])
 | 模板不存在 | `fa template list`；恢复安装资源或指定 `--template` |
 | 改规则后同步没有变化 | `--rescan` 才重读未变文件；已导入交易仍会去重，不会重新分类历史分录 |
 
-旧 `fa trans/import/sync/init/doctor/inspect` 仍可用，但保留历史默认值：尤其旧 import/sync 默认直接写入。新自动化应迁移到分组命令。旧脚本与新命令逐项映射见 [命令参考](cli.md#旧入口迁移)。
+仅提供文档中的正式指令；不保留旧根命令、旧 Python 包路径或独立执行脚本。

@@ -1,52 +1,27 @@
+"""Dependency boundaries and isolated invocations, using disposable bills."""
+
 import ast
 import importlib.util
-import io
 import json
-import subprocess
-import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
-from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
-from unittest.mock import patch
 
-from fane.bootstrap import PROVIDER_SPECS, ProviderSpec, build_converter
-from fane.config import Config
-from fane.core.compiler import Compiler
-from fane.core.models import IR, Order
-from fane.entrypoints.cli import app
 from typer.testing import CliRunner
+
+from fane.bill.conversion import Converter
+from fane.cli import app
+from fane.shared.config import Config
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def fixture_order():
-    return Order(
-        pay_time=datetime(2026, 8, 2, 12),
-        peer="Fixture",
-        item="Fixture transaction",
-        money=Decimal("12.34"),
-        order_id="fixture-order",
-    )
-
-
-class FixtureProvider:
-    def translate(self, filename):
-        return IR(orders=[fixture_order()])
-
-
-class FixtureAnalyser:
-    def get_account_and_tags(self, order, config):
-        return False, config.default_minus_account, config.default_plus_account, {}, []
-
-
 class ArchitectureTest(unittest.TestCase):
-    def test_dependencies_follow_layer_boundaries(self):
-        features = {"bill", "classify", "subscriptions", "ledger", "query"}
-        allowed = {"shared": {"shared", "cli", "modules"}}
-        allowed.update({feature: {feature, "shared", "cli", "modules"} for feature in features})
+    def test_features_do_not_import_siblings_or_the_cli_root(self):
+        features = {"bill", "classify", "subscriptions", "ledger", "query", "flow"}
+        allowed = {"shared": {"shared"}}
+        allowed.update({name: {name, "shared", "version"} for name in features})
+        allowed["flow"] |= features
         for path in (ROOT / "fane").rglob("*.py"):
             relative = path.relative_to(ROOT).with_suffix("")
             module = ".".join(relative.parts)
@@ -74,126 +49,72 @@ class ArchitectureTest(unittest.TestCase):
                         )
                         if layer in allowed and name.startswith("fane."):
                             self.assertIn(name.split(".")[1], allowed[layer])
-                        if layer == "shared" and len(relative.parts) > 2 and relative.parts[2] in {"models", "ports", "conversion", "compiler", "results", "rules", "matching", "errors"}:
-                            self.assertNotIn(
-                                name.split(".")[0],
-                                {"typer", "pandas", "yaml", "jinja2", "beancount"},
-                            )
 
-    def test_core_import_does_not_load_concrete_adapters(self):
-        code = (
-            "import sys; from fane.core.conversion import ConversionService; "
-            "assert not any(name in sys.modules for name in "
-            "('pandas', 'yaml', 'jinja2', 'typer', 'fane.bootstrap', 'fane.bill.build'))"
+    def fixture(self, directory):
+        source = directory / "bill.csv"
+        source.write_text(
+            "交易时间,交易分类,交易订单号,商家订单号,交易对方,商品说明,对方账号,金额,收/支,交易状态,收/付款方式,备注\n2026-08-02 12:00:00,餐饮,id,merchant,店,午餐,账号,12.34,支出,支付成功,余额,\n"
         )
-        result = subprocess.run(
-            [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        return source
 
-    def test_custom_renderer_and_post_processor_need_no_core_changes(self):
-        processed = []
+    def test_converters_with_different_configs_are_isolated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = self.fixture(Path(directory))
+            first = Converter(
+                Config.model_validate({"default-minus-account": "Assets:First"})
+            )
+            second = Converter(
+                Config.model_validate({"default-minus-account": "Assets:Second"})
+            )
+            before = first.convert("alipay", str(source))
+            self.assertIn(
+                "Assets:Second",
+                second.convert("alipay", str(source)).entries[0].content,
+            )
+            self.assertEqual(before, first.convert("alipay", str(source)))
+            self.assertIn("Assets:First", before.entries[0].content)
+            self.assertEqual(before.unmatched, 1)
 
-        def post_process(ir):
-            processed.append(True)
-            ir.orders.append(fixture_order())
-            return ir
-
-        class Renderer:
-            def render_order(self, order):
-                return "expense", '2026-08-02 * "Fixture"\n'
-
-        compiler = Compiler(
-            "fixture",
-            IR(orders=[fixture_order()]),
-            Renderer(),
-            lambda order: (False, "Assets:Cash", "Expenses:Test", {}, []),
-            post_process,
-        )
-        output = io.StringIO()
-        with redirect_stdout(output):
-            first = compiler.build_result()
-            second = compiler.build_result()
-            entries = compiler.build_entries("virtual-source")
-        self.assertEqual(first, second)
-        self.assertEqual(len(entries), 2)
-        self.assertEqual(len(processed), 1)
-        self.assertEqual(output.getvalue(), "")
-
-    def test_services_with_different_configs_are_isolated(self):
-        specs = {"fixture": ProviderSpec(FixtureProvider, FixtureAnalyser)}
-        first = build_converter(
-            Config.model_validate({"default-minus-account": "Assets:First"}),
-            specs=specs,
-        )
-        second = build_converter(
-            Config.model_validate({"default-minus-account": "Assets:Second"}),
-            specs=specs,
-        )
-        first_result = first.convert("fixture", "virtual")
-        second_result = second.convert("fixture", "virtual")
-        self.assertIn("Assets:First", first_result.entries[0].content)
-        self.assertIn("Assets:Second", second_result.entries[0].content)
-        self.assertNotIn(
-            "Assets:Second", first.convert("fixture", "virtual").entries[0].content
-        )
-        self.assertEqual(first_result.summary()["unmatched"], 1)
-        self.assertEqual(
-            first_result.grouped()["expense"]["08"], [first_result.entries[0].content]
-        )
-
-    def test_cli_invocations_do_not_reuse_config_and_help_needs_no_config(self):
+    def test_cli_invocations_do_not_reuse_config(self):
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            source = base / "bill"
-            source.touch()
-            with patch.dict(
-                PROVIDER_SPECS,
-                {"fixture": ProviderSpec(FixtureProvider, FixtureAnalyser)},
-            ):
-                for account in ("First", "Second"):
-                    config = base / f"{account}.yaml"
-                    config.write_text(f"default-minus-account: Assets:{account}\n")
-                    result = runner.invoke(
-                        app,
-                        [
-                            "--config",
-                            str(config),
-                            "trans",
-                            "--provider",
-                            "fixture",
-                            "--source",
-                            str(source),
-                        ],
-                    )
-                    self.assertEqual(result.exit_code, 0, result.output)
-                    entry = json.loads(result.stdout)["expense"]["08"][0]
-                    self.assertIn(f"Assets:{account}", entry)
-                missing = str(base / "missing.yaml")
-                failed = runner.invoke(
-                    app, ["--config", missing, "trans", "--source", str(source)]
+            source = self.fixture(base)
+            for account in ("First", "Second"):
+                config = base / f"{account}.yaml"
+                config.write_text(f"default-minus-account: Assets:{account}\n")
+                result = runner.invoke(
+                    app,
+                    [
+                        "-c",
+                        str(config),
+                        "convert",
+                        "-p",
+                        "alipay",
+                        "-s",
+                        str(source),
+                        "-f",
+                        "json",
+                    ],
                 )
-                self.assertNotEqual(failed.exit_code, 0)
-                self.assertIn("找不到配置文件", failed.output)
-                for command in ("trans", "sync", "inspect", "import", "ledger"):
-                    help_result = runner.invoke(
-                        app, ["--config", missing, command, "--help"]
-                    )
-                    self.assertEqual(help_result.exit_code, 0, help_result.output)
-
-    def test_legacy_models_and_modules_share_identity(self):
-        from fane.infrastructure.ledger import assertions, balance, validation
-        from ir.ir import Order as LegacyOrder
-        from package.ledger import assertions as legacy_assertions
-
-        from fane.shared import balance as shared_balance
-        from fane.shared import check
-
-        self.assertIs(LegacyOrder, Order)
-        self.assertIs(legacy_assertions, assertions)
-        self.assertIs(balance, shared_balance)
-        self.assertIs(validation, check)
+                self.assertEqual(result.exit_code, 0, result.output)
+                self.assertIn(
+                    f"Assets:{account}", json.loads(result.stdout)[0]["content"]
+                )
+            failed = runner.invoke(
+                app,
+                [
+                    "-c",
+                    str(base / "missing.yaml"),
+                    "convert",
+                    "-p",
+                    "alipay",
+                    "-s",
+                    str(source),
+                ],
+            )
+            self.assertNotEqual(failed.exit_code, 0)
+            self.assertIn("找不到配置文件", failed.output)
 
 
 if __name__ == "__main__":

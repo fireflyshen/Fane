@@ -26,16 +26,9 @@ web = ["fava"]
 [project.scripts]
 fa = "fane.cli:app"
 
-[tool.setuptools]
-
-[tool.setuptools.package-dir]
-package = "compat/package"
-provider = "compat/provider"
-ir = "compat/ir"
-
 [tool.setuptools.packages.find]
-where = [".", "compat"]
-include = ["fane*", "ir*", "package*", "provider*"]
+where = ["."]
+include = ["fane*"]
 namespaces = false
 
 [tool.setuptools.package-data]

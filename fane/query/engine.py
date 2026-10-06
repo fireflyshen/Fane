@@ -7,7 +7,7 @@ economic totals without treating balance-sheet transfers as income/expenses.
 
 Example:
 
-    python tools/query_period.py --start 2026-07-27 --end 2026-08-02 --pretty
+    fa query 2026-07-27 2026-08-02
 
 Amounts are JSON strings, not floating-point numbers, so decimal precision is
 preserved. The date range is inclusive and limited to 366 days per invocation.
@@ -15,7 +15,6 @@ preserved. The date range is inclusive and limited to 366 days per invocation.
 
 from __future__ import annotations
 
-import argparse
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import date, datetime
@@ -31,15 +30,6 @@ MAX_QUERY_DAYS = 366
 DEFAULT_MAX_TRANSACTIONS = 500
 
 INTERNAL_META_KEYS = frozenset({"filename", "lineno", "__tolerances__"})
-
-
-def parse_iso_date(value: str) -> date:
-    try:
-        return date.fromisoformat(value)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(
-            f"invalid date {value!r}; expected YYYY-MM-DD"
-        ) from exc
 
 
 def decimal_text(value: Decimal) -> str:

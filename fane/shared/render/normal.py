@@ -1,25 +1,15 @@
 from pathlib import Path
 
-from jinja2 import Template
-
 from fane.shared.models import Account, Order
-from fane.shared.render.strategy import TemplateStrategy
 from fane.shared.render.templates import (
     NormalOrder,
-    get_template,
     render_normal_order,
 )
 
 
-class NormalStrategy(TemplateStrategy):
+class NormalStrategy:
     def __init__(self, template_file: Path | None = None) -> None:
         self.template_file = template_file
-        self.expense_list: list[str] = []
-        self.income_list: list[str] = []
-
-    @classmethod
-    def get_template_content(cls, template_name: str) -> Template:
-        return get_template(template_name)
 
     def render_order(self, order: Order) -> tuple[str, str]:
         normal_order = NormalOrder(
@@ -50,10 +40,3 @@ class NormalStrategy(TemplateStrategy):
         if "收益发放" in normal_order.item:
             return "income", data
         return "expense", data
-
-    def template_parser(self, order: Order) -> None:
-        kind, data = self.render_order(order)
-        if kind == "income":
-            self.income_list.append(data)
-        else:
-            self.expense_list.append(data)
