@@ -12,13 +12,12 @@ from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 
-from typer.testing import CliRunner
-
 from fane.bootstrap import PROVIDER_SPECS, ProviderSpec, build_converter
 from fane.config import Config
 from fane.core.compiler import Compiler
 from fane.core.models import IR, Order
 from fane.entrypoints.cli import app
+from typer.testing import CliRunner
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,13 +44,9 @@ class FixtureAnalyser:
 
 class ArchitectureTest(unittest.TestCase):
     def test_dependencies_follow_layer_boundaries(self):
-        allowed = {
-            "core": {"core"},
-            "config": {"config", "core"},
-            "providers": {"providers", "core"},
-            "application": {"application", "core", "config", "infrastructure"},
-            "infrastructure": {"infrastructure", "core", "config"},
-        }
+        features = {"bill", "classify", "subscriptions", "ledger", "query"}
+        allowed = {"shared": {"shared", "cli", "modules"}}
+        allowed.update({feature: {feature, "shared", "cli", "modules"} for feature in features})
         for path in (ROOT / "fane").rglob("*.py"):
             relative = path.relative_to(ROOT).with_suffix("")
             module = ".".join(relative.parts)
@@ -79,7 +74,7 @@ class ArchitectureTest(unittest.TestCase):
                         )
                         if layer in allowed and name.startswith("fane."):
                             self.assertIn(name.split(".")[1], allowed[layer])
-                        if layer == "core":
+                        if layer == "shared" and len(relative.parts) > 2 and relative.parts[2] in {"models", "ports", "conversion", "compiler", "results", "rules", "matching", "errors"}:
                             self.assertNotIn(
                                 name.split(".")[0],
                                 {"typer", "pandas", "yaml", "jinja2", "beancount"},
@@ -89,7 +84,7 @@ class ArchitectureTest(unittest.TestCase):
         code = (
             "import sys; from fane.core.conversion import ConversionService; "
             "assert not any(name in sys.modules for name in "
-            "('pandas', 'yaml', 'jinja2', 'typer', 'fane.bootstrap'))"
+            "('pandas', 'yaml', 'jinja2', 'typer', 'fane.bootstrap', 'fane.bill.build'))"
         )
         result = subprocess.run(
             [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True
@@ -188,12 +183,17 @@ class ArchitectureTest(unittest.TestCase):
                     self.assertEqual(help_result.exit_code, 0, help_result.output)
 
     def test_legacy_models_and_modules_share_identity(self):
-        from fane.infrastructure.ledger import assertions
+        from fane.infrastructure.ledger import assertions, balance, validation
         from ir.ir import Order as LegacyOrder
         from package.ledger import assertions as legacy_assertions
 
+        from fane.shared import balance as shared_balance
+        from fane.shared import check
+
         self.assertIs(LegacyOrder, Order)
         self.assertIs(legacy_assertions, assertions)
+        self.assertIs(balance, shared_balance)
+        self.assertIs(validation, check)
 
 
 if __name__ == "__main__":

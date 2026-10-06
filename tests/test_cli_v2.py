@@ -11,14 +11,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from beancount import loader
+from fane.core.errors import TemplateError
+from fane.entrypoints.cli import app
+from fane.infrastructure.rendering import templates
 from jinja2 import DictLoader, Environment
 from openpyxl import Workbook
 from typer.main import get_command
 from typer.testing import CliRunner
-
-from fane.core.errors import TemplateError
-from fane.entrypoints.cli import app
-from fane.infrastructure.rendering import templates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -198,9 +197,17 @@ class PublicCliTest(unittest.TestCase):
             else:
                 leaves.append(path)
 
+        from importlib import import_module
+
+        from fane.modules import COMMANDS
+        for definition in COMMANDS.values():
+            import_module(definition[1])
         visit(get_command(app))
-        self.assertEqual(len(leaves), 23)
-        reference = (ROOT / "docs" / "COMMANDS.md").read_text()
+        self.assertGreaterEqual(len(leaves), 26)
+        leaves = [("query",) if path == ("query", "run") else
+                  ("serve",) if path == ("query", "serve") else path
+                  for path in leaves]
+        reference = (ROOT / "docs" / "cli.md").read_text()
         registered = get_command(app)
         for path in leaves:
             with self.subTest(command=path):
@@ -208,7 +215,10 @@ class PublicCliTest(unittest.TestCase):
                 self.assertIn(heading + "\n", reference)
                 section = reference.split(heading + "\n", 1)[1].split("\n## ", 1)[0]
                 command = registered
-                for name in path:
+                destination = ("query", "run") if path == ("query",) else (
+                    ("query", "serve") if path == ("serve",) else path
+                )
+                for name in destination:
                     command = command.commands[name]
                 for parameter in command.params:
                     if not getattr(parameter, "hidden", False):

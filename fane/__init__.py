@@ -1,1 +1,5 @@
-"""Fane bill conversion and ledger tools."""
+"""Composable bill and ledger tools."""
+
+from .compat import install
+
+install()

@@ -1,4 +1,4 @@
-from fane.entrypoints.cli import app
+from fane.cli import app
 
 if __name__ == "__main__":
     app()

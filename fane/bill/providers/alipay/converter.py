@@ -1,0 +1,67 @@
+from fane.bill.providers.alipay.types import AliOrder, DealType
+from fane.shared.models import IR, Order, Type
+
+TYPE_MAP: dict[DealType, Type] = {
+    DealType.SEND: Type.SEND,
+    DealType.RECV: Type.RECV,
+    DealType.NIL: Type.UNKNOW,
+    DealType.OTHERS: Type.UNKNOW,
+    DealType.EMPTY: Type.UNKNOW,
+}
+
+
+def get_private_meta_data(ali_order: AliOrder) -> dict[str, str]:
+    source = "ALiPay"
+    d: dict[str, str] = {}
+    if source:
+        d["source"] = source
+    if ali_order.pay_time:
+        d["pay_time"] = (
+            ali_order.pay_time.strftime("%Y-%m-%d %H:%M:%S")
+            if hasattr(ali_order.pay_time, "strftime")
+            else str(ali_order.pay_time)
+        )
+    if ali_order.deal_no:
+        d["deal_no"] = ali_order.deal_no
+        d["order_id"] = ali_order.deal_no
+    if ali_order.merchant_id:
+        d["merchant_id"] = ali_order.merchant_id
+    if ali_order.category:
+        d["category"] = ali_order.category
+    if ali_order.type_original:
+        d["type"] = ali_order.type_original
+    if ali_order.method:
+        d["method"] = ali_order.method
+    if ali_order.status:
+        d["status"] = ali_order.status.value
+    return d
+
+
+def get_public_meta_data(ali_order: AliOrder) -> Order:
+    return Order(
+        peer=ali_order.peer,
+        item=ali_order.item_name,
+        category=ali_order.category,
+        method=ali_order.method,
+        pay_time=ali_order.pay_time,
+        money=ali_order.money,
+        order_id=ali_order.deal_no,
+        type=convert_type(ali_order.type),
+        type_original=ali_order.type_original,
+        note=ali_order.notes,
+        merchant_order_id=ali_order.merchant_id if ali_order.merchant_id else None,
+    )
+
+
+def config_meta_data(ali_order: AliOrder) -> Order:
+    ir_order = get_public_meta_data(ali_order)
+    ir_order.meta_data = get_private_meta_data(ali_order)
+    return ir_order
+
+
+def convert_type(deal_type: DealType) -> Type:
+    return TYPE_MAP.get(deal_type, Type.UNKNOW)
+
+
+def convert_to_ir(ali_orders: list[AliOrder]) -> IR:
+    return IR(orders=[config_meta_data(ali_order) for ali_order in ali_orders])

@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from fane.entrypoints.legacy.generate_subscriptions import main
+from fane.subscriptions.legacy import main
 
 if __name__ == "__main__":
     raise SystemExit(

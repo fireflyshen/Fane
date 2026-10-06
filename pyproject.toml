@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Fane"
-version = "2.0.2"
+version = "2.2.0"
 requires-python = ">=3.11"
 description = "Convert and sync bills, apply classifications, and manage recurring entries and Beancount ledgers"
 readme = "README.md"
@@ -24,12 +24,17 @@ cloud = ["boto3>=1.35,<2"]
 web = ["fava"]
 
 [project.scripts]
-fa = "fane.entrypoints.cli:app"
+fa = "fane.cli:app"
 
 [tool.setuptools]
 
+[tool.setuptools.package-dir]
+package = "compat/package"
+provider = "compat/provider"
+ir = "compat/ir"
+
 [tool.setuptools.packages.find]
-where = ["."]
+where = [".", "compat"]
 include = ["fane*", "ir*", "package*", "provider*"]
 namespaces = false
 
