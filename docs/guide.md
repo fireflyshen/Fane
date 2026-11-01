@@ -10,31 +10,31 @@
 fa [全局参数] <命令组> <动作> [动作参数]
 ```
 
-| 功能 | 命令 | 输出/写入行为 |
-| --- | --- | --- |
-| 初始化 Fane YAML | `fa config init` | 创建配置；覆盖必须 `--force` |
-| 配置诊断 | `fa config check` | 只读；`--strict` 将警告也视为失败 |
-| 查看账单来源 | `fa providers list` | 当前支持 alipay、wechat |
-| 转换账单 | `fa bill convert` | Beancount / JSON / JSONL |
-| 检查账单 | `fa bill inspect` | 条数、月份、未分类数量 |
-| 单文件导入 | `fa bill import` | 默认去重后的 JSONL 预览；`--write` 写入 |
-| 列出同步任务 | `fa bill jobs` | YAML 中配置的任务名 |
-| 增量同步多个文件 | `fa bill sync JOB` | 默认预览；`--write` 更新账本及同步状态 |
-| 分类决策格式 | `fa classify schema` | JSON Schema |
-| 导出未分类分录 | `fa classify extract` | JSON，包含账户目录、交易和分录 ID |
-| 应用外部分类结果 | `fa classify apply` | 默认 JSON 计划；`--write` 修改分录及规则 |
-| 创建订阅计划 | `fa subscriptions init` | 创建暂停状态的 JSON 示例 |
-| 检查订阅计划 | `fa subscriptions check` | 校验字段、账户、币种和 Beancount |
-| 生成订阅分录 | `fa subscriptions generate` | 默认预览；`--write` 追加缺失月份并更新 include |
-| 列出内置模板 | `fa template list` | 当前 normal.j2 |
-| 查看/导出模板 | `fa template show` | 原文；`--output` 保存文件 |
-| 查看模板变量 | `fa template fields` | 变量名与类型 |
-| 检查模板 | `fa template check` | Jinja2 存在及语法检查 |
-| 校验账本 | `fa ledger validate` | 只读业务校验及 Beancount 校验 |
-| 余额断言 | `fa ledger assertions` | 默认预览；`--write` 写文件及 include |
-| 本地快照 | `fa ledger export` | JSON；`--output` 保存文件 |
-| 查看账本网页 | `fa ledger serve` | 启动 Fava 服务，前台运行 |
-| 发布 R2 快照 | `fa ledger publish` | 执行远程发布，成功后替换当前快照对象 |
+| 功能             | 命令                        | 输出/写入行为                                  |
+| ---------------- | --------------------------- | ---------------------------------------------- |
+| 初始化 Fane YAML | `fa config init`            | 创建配置；覆盖必须 `--force`                   |
+| 配置诊断         | `fa config check`           | 只读；`--strict` 将警告也视为失败              |
+| 查看账单来源     | `fa providers list`         | 当前支持 alipay、wechat                        |
+| 转换账单         | `fa bill convert`           | Beancount / JSON / JSONL                       |
+| 检查账单         | `fa bill inspect`           | 条数、月份、未分类数量                         |
+| 单文件导入       | `fa bill import`            | 默认去重后的 JSONL 预览；`--write` 写入        |
+| 列出同步任务     | `fa bill jobs`              | YAML 中配置的任务名                            |
+| 增量同步多个文件 | `fa bill sync JOB`          | 默认预览；`--write` 更新账本及同步状态         |
+| 分类决策格式     | `fa classify schema`        | JSON Schema                                    |
+| 导出未分类分录   | `fa classify extract`       | JSON，包含账户目录、交易和分录 ID              |
+| 应用外部分类结果 | `fa classify apply`         | 默认 JSON 计划；`--write` 修改分录及规则       |
+| 创建订阅计划     | `fa subscriptions init`     | 创建暂停状态的 JSON 示例                       |
+| 检查订阅计划     | `fa subscriptions check`    | 校验字段、账户、币种和 Beancount               |
+| 生成订阅分录     | `fa subscriptions generate` | 默认预览；`--write` 追加缺失月份并更新 include |
+| 列出内置模板     | `fa template list`          | 当前 normal.j2                                 |
+| 查看/导出模板    | `fa template show`          | 原文；`--output` 保存文件                      |
+| 查看模板变量     | `fa template fields`        | 变量名与类型                                   |
+| 检查模板         | `fa template check`         | Jinja2 存在及语法检查                          |
+| 校验账本         | `fa ledger validate`        | 只读业务校验及 Beancount 校验                  |
+| 余额断言         | `fa ledger assertions`      | 默认预览；`--write` 写文件及 include           |
+| 本地快照         | `fa ledger export`          | JSON；`--output` 保存文件                      |
+| 查看账本网页     | `fa ledger serve`           | 启动 Fava 服务，前台运行                       |
+| 发布 R2 快照     | `fa ledger publish`         | 执行远程发布，成功后替换当前快照对象           |
 
 来源和输入文件没有隐含默认值：新 `bill convert/inspect/import` 都要求 `--provider` 和 `--source`。多文件工作流通过 YAML 的 `jobs` 表达，不再拼很多命令行参数。
 
@@ -206,7 +206,7 @@ apply 的 rule.match 至少包含两个当前交易的来源字段，其中必�
       "rule": {
         "provider": "wechat",
         "account_field": "target-account",
-        "match": {"peer": "咖啡店", "item": "午餐"}
+        "match": { "peer": "咖啡店", "item": "午餐" }
       }
     }
   ]
@@ -344,16 +344,16 @@ print(summary["total"], summary["unmatched"])
 
 ## 9. 路径和状态：避免混淆
 
-| 路径 | 解析规则 |
-| --- | --- |
-| 全局 `--config`、账单 `--source`、CLI `--template`、单文件 `--journal-dir`、`--dedupe-index` | 相对当前工作目录 |
-| CLI `--ledger` 或账本环境变量 | 相对当前工作目录 |
-| YAML `ledger.file`、`template-file`、还款 `ledger-file` | 相对 YAML 目录 |
-| YAML 同步任务中的 journal-dir/source/state/lock/dedupe/validator cwd | 相对当前工作目录；调度时建议绝对路径 |
-| assertions 的 output/index | 相对主账本目录 |
-| `--subscriptions`、分类 `--root`、分类 `--input`、普通 `--output` | 相对当前工作目录 |
-| 默认订阅 JSON | YAML 同目录 subscriptions.json |
-| 分类 root / 订阅 journal | 默认主账本所在目录 / 其 journal 子目录 |
+| 路径                                                                                         | 解析规则                               |
+| -------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 全局 `--config`、账单 `--source`、CLI `--template`、单文件 `--journal-dir`、`--dedupe-index` | 相对当前工作目录                       |
+| CLI `--ledger` 或账本环境变量                                                                | 相对当前工作目录                       |
+| YAML `ledger.file`、`template-file`、还款 `ledger-file`                                      | 相对 YAML 目录                         |
+| YAML 同步任务中的 journal-dir/source/state/lock/dedupe/validator cwd                         | 相对当前工作目录；调度时建议绝对路径   |
+| assertions 的 output/index                                                                   | 相对主账本目录                         |
+| `--subscriptions`、分类 `--root`、分类 `--input`、普通 `--output`                            | 相对当前工作目录                       |
+| 默认订阅 JSON                                                                                | YAML 同目录 subscriptions.json         |
+| 分类 root / 订阅 journal                                                                     | 默认主账本所在目录 / 其 journal 子目录 |
 
 导入/同步默认状态根目录：`FANE_STATE_HOME`，否则 `XDG_STATE_HOME/fane`，否则 `~/.local/state/fane`。下面按 journal 绝对路径的哈希区分账本；`FANE_STATE_NAMESPACE` 可指定固定子目录名。包含导入指纹、任务状态和锁。
 
@@ -361,15 +361,15 @@ print(summary["total"], summary["unmatched"])
 
 ## 10. 常见问题与迁移
 
-| 现象 | 检查方法 |
-| --- | --- |
-| 找不到 fa | 激活安装它的虚拟环境，或执行该环境里的 `python -m fane` |
-| 找不到配置 | `fa --config /绝对路径/bill.yaml config check`；默认不是仓库 YAML |
-| 没有写入 | 新命令默认预览，正式操作加 `--write`；也可能全部已去重 |
-| 账本校验失败但 Beancount 能打开 | 还有项目业务检查：未引用文件、未使用账户、币种/元数据/配置引用 |
-| 分类 apply 拒绝 | posting_id 可能已过期、置信度不足、存在 defer/缺失，或自动规则过宽 |
-| 订阅生成失败并恢复 | 账户/币种不匹配、主账本未 include journal 索引或新分录不合法 |
-| 模板不存在 | `fa template list`；恢复安装资源或指定 `--template` |
-| 改规则后同步没有变化 | `--rescan` 才重读未变文件；已导入交易仍会去重，不会重新分类历史分录 |
+| 现象                            | 检查方法                                                            |
+| ------------------------------- | ------------------------------------------------------------------- |
+| 找不到 fa                       | 激活安装它的虚拟环境，或执行该环境里的 `python -m fane`             |
+| 找不到配置                      | `fa --config /绝对路径/bill.yaml config check`；默认不是仓库 YAML   |
+| 没有写入                        | 新命令默认预览，正式操作加 `--write`；也可能全部已去重              |
+| 账本校验失败但 Beancount 能打开 | 还有项目业务检查：未引用文件、未使用账户、币种/元数据/配置引用      |
+| 分类 apply 拒绝                 | posting_id 可能已过期、置信度不足、存在 defer/缺失，或自动规则过宽  |
+| 订阅生成失败并恢复              | 账户/币种不匹配、主账本未 include journal 索引或新分录不合法        |
+| 模板不存在                      | `fa template list`；恢复安装资源或指定 `--template`                 |
+| 改规则后同步没有变化            | `--rescan` 才重读未变文件；已导入交易仍会去重，不会重新分类历史分录 |
 
 仅提供文档中的正式指令；不保留旧根命令、旧 Python 包路径或独立执行脚本。

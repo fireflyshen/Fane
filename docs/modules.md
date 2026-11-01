@@ -51,18 +51,18 @@ flow 是组合功能。删除 bill、classify、subscriptions 后，依赖它们
 
 ## 修改入口
 
-| 要做什么 | 修改位置 |
-| --- | --- |
-| 新增来源 | bill/providers 下增加解析器，在 bill/conversion.py 显式选择来源与规则 |
-| 修改来源字段读取 | 对应 providers 下的 reader.py、converter.py、types.py |
-| 添加个人分类规则 | 配置 YAML 中 alipay.rules 或 wechat.rules |
-| 修改规则语义 | shared/rules.py、shared/matching.py、bill/rules/ |
-| 修改分录格式 | shared/render/normal.j2；也可用 --template 指定外部模板 |
-| 修改导入去重/路由 | shared/results.py、shared/journal/；不要改变已入账指纹身份 |
-| 修改分类写入 | classify/service.py 的 apply_decisions |
-| 修改 n8n 入账 | flow/bill.py；入口依然是 fa flow bill |
-| 修改月报 | flow/report.py、flow/snapshot.py 和 integrations/n8n 的报告资源 |
-| 新增命令 | 业务 cli.py，再在根 cli.py 显式连接 |
+| 要做什么          | 修改位置                                                              |
+| ----------------- | --------------------------------------------------------------------- |
+| 新增来源          | bill/providers 下增加解析器，在 bill/conversion.py 显式选择来源与规则 |
+| 修改来源字段读取  | 对应 providers 下的 reader.py、converter.py、types.py                 |
+| 添加个人分类规则  | 配置 YAML 中 alipay.rules 或 wechat.rules                             |
+| 修改规则语义      | shared/rules.py、shared/matching.py、bill/rules/                      |
+| 修改分录格式      | shared/render/normal.j2；也可用 --template 指定外部模板               |
+| 修改导入去重/路由 | shared/results.py、shared/journal/；不要改变已入账指纹身份            |
+| 修改分类写入      | classify/service.py 的 apply_decisions                                |
+| 修改 n8n 入账     | flow/bill.py；入口依然是 fa flow bill                                 |
+| 修改月报          | flow/report.py、flow/snapshot.py 和 integrations/n8n 的报告资源       |
+| 新增命令          | 业务 cli.py，再在根 cli.py 显式连接                                   |
 
 旧导入壳、动态别名、旧根命令、协议端口、ProviderSpec/Binding 工厂和独立执行脚本已删除。持久化的账本、去重身份、订阅标记和报告状态属于真实财务数据，保留其读取语义。
 

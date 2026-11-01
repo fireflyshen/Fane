@@ -16,6 +16,7 @@ from unittest.mock import patch
 from beancount import loader
 from openpyxl import Workbook
 
+from fane.classify import service as classify
 from fane.flow.bill import BillFlow
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -229,3 +230,78 @@ class FlowIntakeTests(unittest.TestCase):
             response, [{"ok": False, "stage": "unzip", "provider": "wechat"}]
         )
         self.assertEqual(self.month.read_text(), "")
+
+    def test_finish_applies_confirmed_decision_and_preserves_explicit_defer(self):
+        self.run_cli("prepare", payload=self.archive())
+        original = self.month.read_text()
+        self.month.write_text(
+            original
+            + original.replace('"flow-test"', '"deferred-test"').replace(
+                '"店"', '"未知对方"'
+            )
+        )
+        transactions = classify.extraction_payload(self.ledger)["transactions"]
+        decisions = []
+        for tx in transactions:
+            posting = tx["placeholder_postings"][0]
+            if tx["payee"] == "未知对方":
+                decisions.append(
+                    {
+                        "posting_id": posting["posting_id"],
+                        "action": "defer",
+                        "reason": "需人工确认用途",
+                    }
+                )
+            else:
+                decisions.append(
+                    {
+                        "posting_id": posting["posting_id"],
+                        "action": "apply",
+                        "replacement_account": "Expenses:Food",
+                        "confidence": 0.99,
+                        "reason": "Lunch",
+                        "new_account": None,
+                        "rule": {
+                            "provider": "wechat",
+                            "account_field": "target-account",
+                            "match": {"peer": "店", "item": "午餐"},
+                        },
+                    }
+                )
+
+        payload = {"schema_version": 1, "decisions": decisions}
+        encoded = base64.b64encode(json.dumps(payload).encode()).decode()
+        before = self.month.read_bytes()
+        missing = dict(payload, decisions=decisions[:1])
+        with self.assertRaisesRegex(classify.FixmeError, "仍有"):
+            classify.apply_decisions(
+                self.ledger,
+                missing,
+                config_path=self.config,
+                ledger=self.ledger / "main.bean",
+                allow_deferred=True,
+            )
+        self.assertEqual(before, self.month.read_bytes())
+        with self.assertRaisesRegex(classify.FixmeError, "仍有"):
+            classify.validate_decisions(
+                self.ledger, payload, min_confidence=0.92, allow_partial=False
+            )
+
+        def validate(command, cwd, label):
+            if command[0] == "docker":
+                self.assertEqual(
+                    loader.load_file(str(self.ledger / "main.bean"))[1], []
+                )
+            else:
+                result = subprocess.run(command, cwd=cwd, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+        with patch("fane.classify.service._run_command", side_effect=validate):
+            result = BillFlow(self.root, self.config).finish({"decisions_b64": encoded})
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["classification"]["changed_postings"]), 1)
+        self.assertEqual(len(result["classification"]["deferred_postings"]), 1)
+        pending = classify.extraction_payload(self.ledger)["transactions"]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["payee"], "未知对方")
+        self.assertEqual(loader.load_file(str(self.ledger / "main.bean"))[1], [])

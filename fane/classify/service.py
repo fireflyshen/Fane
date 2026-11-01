@@ -412,6 +412,7 @@ def validate_decisions(
     *,
     min_confidence: float,
     allow_partial: bool,
+    allow_deferred: bool = False,
 ) -> list[dict[str, Any]]:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise FixmeError(
@@ -470,7 +471,7 @@ def validate_decisions(
         decision["_rule"] = _validate_rule(decision, tx, replacement)
         validated.append(decision)
     missing = set(posting_map) - seen
-    unresolved = missing | deferred
+    unresolved = missing | (set() if allow_deferred else deferred)
     if unresolved and not allow_partial:
         raise FixmeError(
             f"仍有 {len(unresolved)} 个 FixMe 未获高置信度分类；本次不修改任何文件"
@@ -686,12 +687,17 @@ def apply_decisions(
     write: bool = False,
     min_confidence: float = 0.92,
     allow_partial: bool = False,
+    allow_deferred: bool = False,
     validators: list[str] | None = None,
     check_config: bool = True,
 ) -> dict[str, Any]:
     """CLI 和账单流程共用的分类校验、写入及失败回滚。"""
     decisions = validate_decisions(
-        root, payload, min_confidence=min_confidence, allow_partial=allow_partial
+        root,
+        payload,
+        min_confidence=min_confidence,
+        allow_partial=allow_partial,
+        allow_deferred=allow_deferred,
     )
     command = [sys.executable, "-m", "fane", "--config", str(config_path)]
     checks = (
@@ -701,6 +707,13 @@ def apply_decisions(
     )
     if check_config:
         checks.insert(0, shlex.join([*command, "config", "check"]))
-    return _apply_changes(
+    result = _apply_changes(
         root, decisions, config_path=config_path, dry_run=not write, validators=checks
     )
+    if allow_deferred:
+        result["deferred_postings"] = [
+            {"posting_id": item["posting_id"], "reason": item["reason"]}
+            for item in payload["decisions"]
+            if item["action"] == "defer"
+        ]
+    return result

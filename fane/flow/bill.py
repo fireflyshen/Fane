@@ -146,6 +146,7 @@ class BillFlow:
                     config_path=self.config.resolve(),
                     ledger=self.ledger / "main.bean",
                     write=write,
+                    allow_deferred=True,
                     validators=["docker exec fava bean-check /bean/main.bean"],
                 )
             stage = "subscriptions"

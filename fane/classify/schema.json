@@ -3,10 +3,7 @@
   "title": "Bills AI FixMe decisions",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "decisions"
-  ],
+  "required": ["schema_version", "decisions"],
   "properties": {
     "schema_version": {
       "const": 1
@@ -18,11 +15,7 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "posting_id",
-              "action",
-              "reason"
-            ],
+            "required": ["posting_id", "action", "reason"],
             "properties": {
               "posting_id": {
                 "type": "string",
@@ -79,9 +72,7 @@
                   {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": [
-                      "comment_zh"
-                    ],
+                    "required": ["comment_zh"],
                     "properties": {
                       "comment_zh": {
                         "type": "string",
@@ -98,23 +89,13 @@
               "rule": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "provider",
-                  "account_field",
-                  "match"
-                ],
+                "required": ["provider", "account_field", "match"],
                 "properties": {
                   "provider": {
-                    "enum": [
-                      "alipay",
-                      "wechat"
-                    ]
+                    "enum": ["alipay", "wechat"]
                   },
                   "account_field": {
-                    "enum": [
-                      "target-account",
-                      "method-account"
-                    ]
+                    "enum": ["target-account", "method-account"]
                   },
                   "match": {
                     "type": "object",
@@ -160,14 +141,10 @@
                     },
                     "anyOf": [
                       {
-                        "required": [
-                          "peer"
-                        ]
+                        "required": ["peer"]
                       },
                       {
-                        "required": [
-                          "item"
-                        ]
+                        "required": ["item"]
                       }
                     ]
                   }
@@ -185,9 +162,7 @@
                       "properties": {
                         "match": {
                           "not": {
-                            "required": [
-                              "tx_type"
-                            ]
+                            "required": ["tx_type"]
                           }
                         }
                       }
@@ -205,9 +180,7 @@
                       "properties": {
                         "match": {
                           "not": {
-                            "required": [
-                              "type"
-                            ]
+                            "required": ["type"]
                           }
                         }
                       }

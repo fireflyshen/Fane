@@ -202,6 +202,7 @@ def book(source):
         )
     )
     schedule["name"] = "检查月报"
+    schedule["disabled"] = True
     schedule["parameters"] = {
         "rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}
     }
@@ -441,7 +442,7 @@ def book(source):
         ),
         (
             "领取",
-            "每 5 分钟检查；更新稳定 10 分钟后，按月串行领取。",
+            "自动检查已停用；未经确认不得重新启用定时月报。",
             ["检查月报", "需要报告"],
             5,
         ),
@@ -521,6 +522,209 @@ def project_commands(w):
     return w
 
 
+def business_alerts(w):
+    """Keep operational failures in execution history; email business failures."""
+    if not w:
+        return w
+    if w["id"] == ALERT:
+        for n in w["nodes"]:
+            if n["name"] == "生成失败告警":
+                n["parameters"]["jsCode"] = (HERE / "alert.js").read_text()
+            if n["type"].endswith(".stickyNote"):
+                n["parameters"]["content"] = (
+                    "## 业务失败告警\n仅业务处理或校验失败发送邮件；连接、触发器和运行环境异常不发邮件。"
+                )
+    elif w["id"] == BILL:
+        for n in w["nodes"]:
+            if n["name"] == "账单处理失败":
+                # A Telegram outage must not prevent the business email branch.
+                n["onError"] = "continueRegularOutput"
+        name = "账单业务失败"
+        w["nodes"] = [n for n in w["nodes"] if n["name"] != name]
+        failure = code(
+            name,
+            "const messages={unzip:'账单解压或解密失败',import:'账单解析或入账失败',extract:'待分类账单提取失败'};\n"
+            "if ($json.ok === false && messages[$json.stage]) throw new Error('[BUSINESS] '+messages[$json.stage]+($json.provider?'（'+$json.provider+'）':''));\n"
+            "return [];",
+        )
+        failure["position"] = [2560, 900]
+        w["nodes"].append(failure)
+        targets = w["connections"]["准备成功"]["main"][1]
+        if not any(e["node"] == name for e in targets):
+            targets.append(edge(name))
+    elif w["id"] == BOOK:
+        for n in w["nodes"]:
+            if n["name"] == "报告失败":
+                n["parameters"]["jsCode"] = (
+                    "let reason='';\n"
+                    "for (const name of ['报告','保存结果']) {\n"
+                    " try { const error=$(name).item.json.error; if(error) { reason=typeof error==='string'?error:(error.message||error.description||''); if(reason) break; } } catch {}\n"
+                    "}\n"
+                    "throw new Error(reason?'[BUSINESS] '+reason:'月报生成或发送失败，请检查本次执行；送达不确定的邮件不会自动重发');"
+                )
+    return w
+
+
+def monthly_rule(w, model_template=None):
+    """Apply the approved monthly schedule and a single model request."""
+    if not w or w["id"] != BOOK:
+        return w
+    nodes = {n["name"]: n for n in w["nodes"]}
+    analysis = nodes.get("月报分析") or nodes["AI Agent"]
+    old_name = analysis["name"]
+    if old_name != "月报分析":
+        w["connections"]["月报分析"] = w["connections"].pop("AI Agent")
+        for groups in w["connections"].values():
+            for outputs in groups.values():
+                for targets in outputs:
+                    for target in targets:
+                        if target["node"] == "AI Agent":
+                            target["node"] = "月报分析"
+    analysis.update(
+        name="月报分析",
+        type="@n8n/n8n-nodes-langchain.chainLlm",
+        typeVersion=1.9,
+        retryOnFail=False,
+        onError="continueErrorOutput",
+        parameters={
+            "promptType": "define",
+            "text": "=" + (HERE / "report.txt").read_text(),
+            "needsFallback": False,
+            "hasOutputParser": False,
+            "batching": {"batchSize": 1, "delayBetweenBatches": 0},
+        },
+    )
+    for key in ("credentials", "maxTries", "waitBetweenTries"):
+        analysis.pop(key, None)
+    guard = node(
+        "模型调用限制",
+        "code",
+        {
+            "code": {"supplyData": {"code": (HERE / "model_guard.js").read_text()}},
+            "inputs": {
+                "input": [
+                    {"type": "ai_languageModel", "maxConnections": 1, "required": True}
+                ]
+            },
+            "outputs": {"output": [{"type": "ai_languageModel"}]},
+        },
+        1,
+        retryOnFail=False,
+    )
+    guard["type"] = "@n8n/n8n-nodes-langchain.code"
+    guard["position"] = [2240, 260]
+    connected = [
+        name
+        for name, groups in w["connections"].items()
+        if "ai_languageModel" in groups and name != guard["name"]
+    ]
+    if not connected:
+        if model_template is None:
+            raise ValueError(
+                "Native model template required to replace the old HTTP node"
+            )
+        model = deepcopy(model_template)
+        model["position"] = [2240, 520]
+        model["retryOnFail"] = False
+        w["nodes"].append(model)
+        connected = [model["name"]]
+    if len(connected) != 1:
+        raise ValueError("Exactly one model connection required for monthly reports")
+    w["connections"][connected[0]] = {
+        "ai_languageModel": [
+            [{"node": guard["name"], "type": "ai_languageModel", "index": 0}]
+        ]
+    }
+    w["connections"][guard["name"]] = {
+        "ai_languageModel": [
+            [{"node": "月报分析", "type": "ai_languageModel", "index": 0}]
+        ]
+    }
+    w["nodes"] = [n for n in w["nodes"] if n["name"] != guard["name"]] + [guard]
+    nodes = {n["name"]: n for n in w["nodes"]}
+    schedule = nodes["检查月报"]
+    schedule["disabled"] = False
+    schedule["parameters"] = {
+        "rule": {"interval": [{"field": "cronExpression", "expression": "0 10 3 * *"}]}
+    }
+    w["settings"]["timezone"] = "Asia/Shanghai"
+    nodes["待发月份"]["parameters"]["command"] = (
+        "=/usr/local/bin/fa flow report auto-plan {{ $json.dryRun === true ? '--dry-run' : '' }}"
+    )
+    nodes["分析上下文"]["parameters"]["jsCode"] = (
+        "return [{json:$('领取月份结果').item.json}];"
+    )
+    nodes["报告"]["parameters"]["jsCode"] = (HERE / "report.js").read_text() + (
+        "\nconst context=$('分析上下文').item.json;\n"
+        "const output=$json.text ?? $json.output;\n"
+        "if(output===undefined) throw new Error('[BUSINESS] 模型报告未返回，禁止自动重试');\n"
+        "return [{json:{...context,report:report(output,context)}}];"
+    )
+    w["connections"]["报告有效"]["main"][1] = [edge("保留发送状态")]
+    w["connections"]["记录账本变化"] = {"main": [[edge("待发月份")]]}
+    for name in ["月报分析", "报告", "发送月报", "领取月份", "提醒补齐账单"]:
+        if name in nodes:
+            nodes[name]["retryOnFail"] = False
+    route = deepcopy(nodes["需要报告"])
+    route.update(
+        id=str(uuid.uuid5(uuid.NAMESPACE_URL, "fane/workflow/月报任务")),
+        name="月报任务",
+        position=[800, -200],
+    )
+    route["parameters"]["conditions"]["conditions"][0]["leftValue"] = (
+        "={{ !$json.notice }}"
+    )
+    reminder = deepcopy(nodes["发送月报"])
+    reminder.update(
+        id=str(uuid.uuid5(uuid.NAMESPACE_URL, "fane/workflow/提醒补齐账单")),
+        name="提醒补齐账单",
+        position=[1100, -200],
+        retryOnFail=False,
+    )
+    reminder["parameters"].update(
+        subject="={{ $json.analysisMonth + ' 月报待补齐' }}",
+        emailFormat="text",
+        text="={{ $json.analysisMonth+' 月报尚未生成。'+($json.notice.startsWith('missing-bills:')?'尚未确认整月覆盖的账单：'+$json.notice.slice(14).replace('alipay','支付宝').replace('wechat','微信'):$json.notice==='fixme'?'账本仍有待分类或待修正项目。':'账本没有该月交易。')+' 补齐并成功入账后再检查；尚未调用月报 AI。同一月份仅提醒一次。' }}",
+    )
+    reminder.pop("onError", None)
+    failure_notice = deepcopy(reminder)
+    failure_notice.update(
+        id=str(uuid.uuid5(uuid.NAMESPACE_URL, "fane/workflow/月报失败提醒")),
+        name="月报失败提醒",
+        position=[4480, 620],
+    )
+    failure_notice["parameters"].update(
+        subject="={{ $json.analysisMonth + ' 月报处理停止' }}",
+        text="={{ $json.analysisMonth+' 月报处理已停止。'+$json.notice+' 不会自动再次调用模型，也不会自动重发送达不确定的邮件。请人工检查本次执行。' }}",
+    )
+    nodes["报告失败"]["parameters"]["jsCode"] = (
+        "let notice='模型请求、报告校验或邮件发送失败。';\n"
+        "for(const name of ['月报分析','报告','保存结果','发送月报']) {\n"
+        " try {const error=$(name).item.json.error;if(error){notice=typeof error==='string'?error:(error.message||error.description||notice);break;}} catch {}\n"
+        "}\nreturn [{json:{analysisMonth:$('领取月份结果').item.json.analysisMonth,notice:String(notice).slice(0,400)}}];"
+    )
+    w["nodes"] = [
+        n
+        for n in w["nodes"]
+        if n["name"] not in ("月报任务", "提醒补齐账单", "月报失败提醒")
+    ] + [route, reminder, failure_notice]
+    nodes["待发列表"]["parameters"]["jsCode"] = (
+        "if($json.code!==0) throw new Error('月报候选读取失败');\n"
+        "return JSON.parse($json.stdout).filter(item=>!item.dryRun).map(json=>({json}));"
+    )
+    w["connections"]["待发列表"] = {"main": [[edge("月报任务")]]}
+    w["connections"]["月报任务"] = {
+        "main": [[edge("逐月处理")], [edge("提醒补齐账单")]]
+    }
+    w["connections"]["报告失败"] = {"main": [[edge("月报失败提醒")]]}
+    for n in w["nodes"]:
+        if n["name"] == "布局 · 领取":
+            n["parameters"]["content"] = (
+                "## 月报规则\n每月 3 日 10:00 检查；补齐账单后再检查。仅上月，每月最多一次自动模型请求；失败不自动重试。"
+            )
+    return w
+
+
 def build(pairs):
     indexed = {p["draft"]["id"]: p for p in pairs}
     if "-woXn2NFfexoVljeyJCQ-" not in indexed:
@@ -529,6 +733,7 @@ def build(pairs):
         for pair in output:
             for w in pair.values():
                 project_commands(w)
+                business_alerts(w)
                 if w and w["id"] == BOOK:
                     for n in w["nodes"]:
                         if n["name"] == "AI Agent":
@@ -541,6 +746,7 @@ def build(pairs):
                             n["parameters"]["jsCode"] = (
                                 HERE / "report.js"
                             ).read_text() + tail
+                    monthly_rule(w)
         metadata = {
             BILL: {"name": "账单入账", "tags": ["财务", "账单"]},
             BOOK: {"name": "账本更新", "tags": ["财务", "同步", "月报"]},
@@ -562,7 +768,9 @@ def build(pairs):
         result = {}
         for key in ("draft", "published"):
             source = {wid: p[key] or p["draft"] for wid, p in indexed.items()}
-            result[key] = project_commands(builder(source))
+            result[key] = monthly_rule(
+                business_alerts(project_commands(builder(source)))
+            )
         output.append(result)
     for identifier in (SCREEN, ALERT):
         pair = deepcopy(indexed[identifier])
@@ -573,6 +781,7 @@ def build(pairs):
                         w[key] = json.loads(w[key])
                 if identifier == ALERT:
                     w["name"] = "执行告警"
+                business_alerts(w)
         if identifier == ALERT:
             pair["published"] = deepcopy(pair["draft"])
         output.append(pair)

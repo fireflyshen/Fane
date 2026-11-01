@@ -91,8 +91,8 @@ def report_command(
 
     reports = Reports(root=ctx.obj)
     try:
-        if operation in ("notice", "plan"):
-            result = getattr(reports, operation)(dry_run)
+        if operation in ("notice", "plan", "auto-plan"):
+            result = getattr(reports, operation.replace("-", "_"))(dry_run)
         elif operation == "bootstrap":
             result = reports.bootstrap(
                 request(request_base64) if request_base64 else None

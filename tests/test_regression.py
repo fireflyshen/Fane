@@ -8,6 +8,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from openpyxl import Workbook
+
 from fane.bill.providers.alipay.reader import AliPay
 from fane.bill.providers.alipay.types import DealStatus
 from fane.bill.providers.wechat.reader import Wechat
@@ -667,6 +669,114 @@ class RobustnessTest(unittest.TestCase):
         assert order is not None
         self.assertEqual(order.tx_type, TxType.tx_type_top_up)
         self.assertEqual(order.tx_type_original, "零钱充值")
+
+    def test_wechat_transfer_refund_does_not_abort_mixed_export(self) -> None:
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["微信支付账单明细"])
+        sheet.append(
+            [
+                "交易时间",
+                "交易类型",
+                "交易对方",
+                "商品",
+                "收/支",
+                "金额(元)",
+                "支付方式",
+                "当前状态",
+                "交易单号",
+                "商户单号",
+            ]
+        )
+        sheet.append(
+            [
+                "2026-10-10 12:00:00",
+                "商户消费",
+                "测试商户",
+                "午餐",
+                "支出",
+                "12.34",
+                "零钱",
+                "支付成功",
+                "fixture-purchase",
+                "/",
+            ]
+        )
+        sheet.append(
+            [
+                "2026-10-10 13:00:00",
+                "转账-退款",
+                "NA",
+                "转账退款",
+                "收入",
+                "25.00",
+                "零钱",
+                "已全额退款",
+                "fixture-transfer-refund",
+                None,
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            bill = Path(directory) / "wechat.xlsx"
+            workbook.save(bill)
+            workbook.close()
+            ir = Wechat().translate(str(bill))
+
+        self.assertEqual(len(ir.orders), 2)
+        self.assertEqual(ir.orders[0].type, Type.SEND)
+        refund = ir.orders[1]
+        self.assertEqual(refund.type, Type.RECV)
+        self.assertEqual(refund.type_original, "收入")
+        self.assertEqual(refund.money, Decimal("25.00"))
+        self.assertEqual(refund.order_id, "fixture-transfer-refund")
+        self.assertEqual(refund.peer, "NA")
+        self.assertIsNone(refund.merchant_order_id)
+        self.assertNotIn("merchant_id", refund.meta_data)
+        self.assertEqual(refund.tx_type_original, "转账-退款")
+        self.assertEqual(refund.meta_data["tx_type"], "转账-退款")
+        self.assertEqual(refund.meta_data["status"], "已全额退款")
+
+    def test_wechat_blank_required_values_still_fail(self) -> None:
+        row = {
+            "交易时间": "2026-10-10 13:00:00",
+            "交易类型": "转账-退款",
+            "交易对方": "测试对方",
+            "商品": "转账退款",
+            "收/支": "收入",
+            "金额(元)": "25.00",
+            "支付方式": "零钱",
+            "当前状态": "已全额退款",
+            "交易单号": "fixture-refund",
+            "商户单号": None,
+        }
+        for field in ["交易时间", "金额(元)"]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                workbook = Workbook()
+                sheet = workbook.active
+                sheet.append(list(row))
+                sheet.append(list((row | {field: None}).values()))
+                bill = Path(directory) / "wechat.xlsx"
+                workbook.save(bill)
+                workbook.close()
+                with self.assertRaises(ProviderError):
+                    Wechat().translate(str(bill))
+
+    def test_wechat_unknown_transaction_type_still_fails(self) -> None:
+        with self.assertRaisesRegex(ProviderError, "交易类型 包含不支持的值"):
+            Wechat().parse_order(
+                {
+                    "交易时间": "2026-10-10 13:00:00",
+                    "交易类型": "未知交易类型",
+                    "交易对方": "测试对方",
+                    "商品": "测试交易",
+                    "收/支": "收入",
+                    "金额(元)": "25.00",
+                    "支付方式": "零钱",
+                    "当前状态": "支付成功",
+                    "交易单号": "fixture-unknown",
+                    "商户单号": "/",
+                }
+            )
 
     def test_wechat_rule_match_keeps_account_resolution_behavior(self) -> None:
         cfg = Config.model_validate(

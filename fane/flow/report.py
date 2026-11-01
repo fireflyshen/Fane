@@ -52,6 +52,10 @@ class Reports:
               source_hash TEXT,revision INTEGER,generated_at TEXT,sent_at TEXT,report_json TEXT);
             CREATE TABLE IF NOT EXISTS history(month TEXT,revision INTEGER,source_hash TEXT,
               sent_at TEXT,report_json TEXT,PRIMARY KEY(month,revision));
+            CREATE TABLE IF NOT EXISTS automatic_attempts(month TEXT PRIMARY KEY,
+              token TEXT NOT NULL,attempted_at REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS automatic_notices(month TEXT PRIMARY KEY,
+              notified_at REAL NOT NULL);
         """)
         columns = {r["name"] for r in self.db.execute("PRAGMA table_info(reports)")}
         for name, kind in [
@@ -144,12 +148,39 @@ class Reports:
                 changes += cursor.rowcount
         return {"observed": True, "changed_months": changes}
 
-    def check(self, month):
+    def automatic_reason(self, month):
+        if not self.settings.get("automatic_enabled", False):
+            return "automatic-disabled"
+        if month != previous_month(self.now()):
+            return "automatic-only-previous-month"
+        today = datetime.fromtimestamp(self.clock(), ZoneInfo("Asia/Shanghai"))
+        if today.strftime("%Y-%m") != self.now() or (today.day, today.hour) < (3, 10):
+            return "before-monthly-check"
+        if self.db.execute("SELECT 1 FROM reports WHERE month=?", (month,)).fetchone():
+            return "already-generated"
+        if self.db.execute(
+            "SELECT 1 FROM automatic_attempts WHERE month=?", (month,)
+        ).fetchone():
+            return "automatic-attempt-used"
+        from .coverage import missing_sources
+
+        missing = missing_sources(
+            self.root,
+            month,
+            self.settings.get("required_sources", ["alipay", "wechat"]),
+        )
+        if missing:
+            return "missing-bills:" + ",".join(missing)
+        return None
+
+    def check(self, month, automatic=False):
         validate_month(month)
         if month >= self.now():
             return "month-not-closed"
         if month < self.floor:
             return "before-start-month"
+        if automatic and (reason := self.automatic_reason(month)):
+            return reason
         text = self.load().get(month, "")
         if not text:
             return "no-transactions"
@@ -175,6 +206,8 @@ class Reports:
             or row["semantic_hash"] == self.source_hash(month)
         ):
             return "already-generated"
+        if automatic:
+            return None
         observed = self.db.execute(
             "SELECT * FROM observations WHERE month=?", (month,)
         ).fetchone()
@@ -204,6 +237,26 @@ class Reports:
             if self.floor <= m < self.now() and self.check(m) is None
         ]
 
+    def auto_plan(self, dry_run=False):
+        month = previous_month(self.now())
+        reason = self.check(month, automatic=True)
+        if reason is None:
+            return [{"analysisMonth": month, "automatic": True, "dryRun": dry_run}]
+        if reason.startswith("missing-bills:") or reason in (
+            "fixme",
+            "no-transactions",
+        ):
+            if dry_run:
+                return [{"analysisMonth": month, "notice": reason, "dryRun": True}]
+            with self.db:
+                cursor = self.db.execute(
+                    "INSERT OR IGNORE INTO automatic_notices VALUES(?,?)",
+                    (month, self.clock()),
+                )
+            if cursor.rowcount:
+                return [{"analysisMonth": month, "notice": reason}]
+        return []
+
     def actions(self, month):
         path = self.root / "state/n8n/database.sqlite"
         if not path.exists():
@@ -223,7 +276,8 @@ class Reports:
         self.load()
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
-            reason = self.check(month)
+            automatic = request.get("automatic") is True
+            reason = self.check(month, automatic=automatic)
             if request.get("dryRun") is True:
                 reason = reason or "dry-run"
             if reason:
@@ -233,6 +287,11 @@ class Reports:
             ).fetchone()
             revision = (previous["revision"] + 1) if previous else 1
             token, digest = str(uuid.uuid4()), self.source_hash(month)
+            if automatic:
+                self.db.execute(
+                    "INSERT INTO automatic_attempts VALUES(?,?,?)",
+                    (month, token, self.clock()),
+                )
             self.db.execute(
                 """INSERT INTO jobs(month,status,token,claimed_at,source_hash,revision)
                 VALUES(?,'processing',?,?,?,?) ON CONFLICT(month) DO UPDATE SET status='processing',

@@ -39,14 +39,13 @@ fa convert -p wechat -s bill.xlsx -f jsonl | fa ingest journal --write
 命令显式注册，功能按业务目录拆卸。旧导入壳、动态别名、插件注册与旧命令均已移除。
 查询兼容原 ledger-query 的 `/health` 和 `/query`，不调用 Flova。
 
-| 需要什么 | 文档 |
-| --- | --- |
-| 安装与工作流 | [使用](docs/guide.md) |
-| 全部参数与指令契约 | [命令](docs/cli.md) |
-| YAML、规则与订阅 | [配置](docs/config.md) |
-| 目录和拆卸 | [模块](docs/modules.md) |
-| rn 部署与 n8n | [自动化](docs/n8n.md) |
-
+| 需要什么           | 文档                    |
+| ------------------ | ----------------------- |
+| 安装与工作流       | [使用](docs/guide.md)   |
+| 全部参数与指令契约 | [命令](docs/cli.md)     |
+| YAML、规则与订阅   | [配置](docs/config.md)  |
+| 目录和拆卸         | [模块](docs/modules.md) |
+| rn 部署与 n8n      | [自动化](docs/n8n.md)   |
 
 rn 使用 uv 安装 Fane，由 systemd 的 `fane.service` 管理查询进程；n8n 通过内部网络调用它。部署定义见 [服务](deploy/fane.service)。
 项目同时支持 Docker，从项目根目录执行 `docker build -f deploy/Dockerfile -t fane .`；Docker 构建只包含程序源码，不包含 token 或本地账本。

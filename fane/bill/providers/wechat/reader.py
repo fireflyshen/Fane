@@ -27,7 +27,9 @@ class Wechat(TabularProvider[WechatOrder]):
     def iter_rows(self, filename: str) -> Iterable[Mapping[str, Any]]:
         start_index = self.find_header_index(filename)
         try:
-            df = pd.read_excel(filename, skiprows=start_index, dtype=str)
+            df = pd.read_excel(
+                filename, skiprows=start_index, dtype=str, keep_default_na=False
+            )
             self.ensure_columns(df.columns, REQUIRED_COLUMNS, filename)
             for _, row in df.iterrows():
                 yield cast(dict[str, Any], row.to_dict())

@@ -413,66 +413,66 @@ ledger:
   file: ../../Bills/main.bean
   policy:
     required-currencies:
-    - CNY
-    - GBP
-    - USD
+      - CNY
+      - GBP
+      - USD
     required-metadata:
       Assets:Bank:
-      - account_type
-      - institution
+        - account_type
+        - institution
       Assets:Deposit:
-      - account_type
-      - institution
+        - account_type
+        - institution
       Assets:Cash:Alipay:
-      - liquidity
-      - platform
+        - liquidity
+        - platform
       Assets:Cash:WeChat:
-      - liquidity
-      - platform
+        - liquidity
+        - platform
       Assets:StoredValue:
-      - account_type
-      - platform
+        - account_type
+        - platform
       Assets:Investments:
-      - product
+        - product
       Assets:Receivable:
-      - counterparty
+        - counterparty
       Liabilities:Card:
-      - account_type
-      - institution
-      - last4
+        - account_type
+        - institution
+        - last4
       Liabilities:Credit:
-      - platform
-      - product
+        - platform
+        - product
       Liabilities:Accrued:
-      - domain
-      - recognition
+        - domain
+        - recognition
       Income:Salary:
-      - income_type
+        - income_type
       Income:Family:
-      - income_type
+        - income_type
       Income:Rebates:
-      - income_type
+        - income_type
       Expenses:
-      - flux_label
+        - flux_label
     disallowed-segments:
-    - fix
-    - fixme
-    - general
-    - other
-    - localservices
+      - fix
+      - fixme
+      - general
+      - other
+      - localservices
     allowed-accounts:
-    - Expenses:FIXME
+      - Expenses:FIXME
   assertions:
     output-dir: assertion/data
     index: assertion/index.bean
     ignored-prefixes:
-    - Assets:Prepaid
-    - Assets:Clearing
-    - Liabilities:Accrued
+      - Assets:Prepaid
+      - Assets:Clearing
+      - Liabilities:Accrued
     precision: 2
   snapshot:
     accrual-offset-prefixes:
-      - 'Liabilities:Accrued:'
-      - 'Liabilities:AccruedExpenses:'
-      - 'Assets:Prepaid:'
-      - 'Assets:PrepaidExpenses:'
+      - "Liabilities:Accrued:"
+      - "Liabilities:AccruedExpenses:"
+      - "Assets:Prepaid:"
+      - "Assets:PrepaidExpenses:"
