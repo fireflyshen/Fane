@@ -56,6 +56,8 @@ fa sub generate --ledger /root/.flow/data/account/main.bean --subscriptions /roo
 
 来源、模板、去重和分类仍由 Fane 决定。账单与回调共享文件锁，避免同步仓库时覆盖正在写入的账单。
 日期使用 Asia/Shanghai。历史压缩包和去重状态保留；从失败执行重试或重新发送原邮件可以补处理。
+微信支持「扫二维码付款」交易类型，保留原始类型，收支方向仍以「收/支」列为准。
+导入阶段会同步任务中的多个来源；解析失败会保留实际来源、文件名和错误原因，告警不再使用触发邮件的来源作为失败来源。
 
 架构约束：SSH 节点只调用安装后的 `fa flow bill`、`fa flow sync`、`fa flow report`、`fa flow commit`。
 解压代码属于 `fane/bill/archive.py`，编排与报告状态属于可拆卸的 `fane/flow/`，均随 Fane 安装包发布；不再单独复制 Python 脚本。

@@ -544,7 +544,7 @@ def business_alerts(w):
         failure = code(
             name,
             "const messages={unzip:'账单解压或解密失败',import:'账单解析或入账失败',extract:'待分类账单提取失败'};\n"
-            "if ($json.ok === false && messages[$json.stage]) throw new Error('[BUSINESS] '+messages[$json.stage]+($json.provider?'（'+$json.provider+'）':''));\n"
+            "if ($json.ok === false && messages[$json.stage]) throw new Error('[BUSINESS] '+messages[$json.stage]+($json.stage!=='import'&&$json.provider?'（'+$json.provider+'）':'')+($json.error?'：'+$json.error:''));\n"
             "return [];",
         )
         failure["position"] = [2560, 900]

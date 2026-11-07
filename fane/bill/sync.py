@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fane.bill.conversion import Converter, provider_names
 from fane.shared.config import Config, SourceConfig, SyncJob
-from fane.shared.errors import SyncError
+from fane.shared.errors import FaneError, SyncError
 from fane.shared.journal.router import JournalRouter
 from fane.shared.journal.state import SyncLock, SyncState, sha256_file
 from fane.shared.journal.writer import JournalWriter
@@ -197,7 +197,12 @@ class SyncService:
                         )
                     )
                     continue
-                source_entries, unmatched = self._compile(source, path)
+                try:
+                    source_entries, unmatched = self._compile(source, path)
+                except (FaneError, ValueError, OSError) as error:
+                    raise SyncError(
+                        f"来源 {source.id}（{source.provider}），文件 {path.name}: {error}"
+                    ) from error
                 if sha256_file(path) != digest:
                     raise SyncError(
                         f"来源 {source.id} 在解析过程中发生变化，请等待文件写入完成后重试"

@@ -12,6 +12,7 @@ class DealType(Enum):
 
 class TxType(Enum):
     tx_type_consume = "商户消费"
+    tx_type_scan_payment = "扫二维码付款"
     tx_type_credit = "信用卡还款"
     tx_type_transfer = "转账"
     tx_type_transfer_refund = "转账-退款"

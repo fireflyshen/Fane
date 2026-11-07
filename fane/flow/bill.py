@@ -128,8 +128,15 @@ class BillFlow:
             RuntimeError,
             FaneError,
             zipfile.BadZipFile,
-        ):
-            return [{"ok": False, "stage": stage, "provider": provider}]
+        ) as error:
+            return [
+                {
+                    "ok": False,
+                    "stage": stage,
+                    "provider": provider,
+                    "error": str(error),
+                }
+            ]
         finally:
             incoming.unlink(missing_ok=True)
 
