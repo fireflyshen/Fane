@@ -1,4 +1,6 @@
-def split_find_contains(value: str, target: object, sep: str, match: bool) -> bool:
+def split_find_contains(
+    value: str, target: object, sep: str, match: bool
+) -> bool:
     ss = value.split(sep)
     is_contains = False
 

@@ -37,7 +37,8 @@ COMMON_RANGE_FIELDS = {
 ACTIVE_MATCH_FIELDS = {
     "alipay": COMMON_RANGE_FIELDS
     | {"peer", "note", "item", "category", "type", "method"},
-    "wechat": COMMON_RANGE_FIELDS | {"peer", "item", "category", "tx_type", "method"},
+    "wechat": COMMON_RANGE_FIELDS
+    | {"peer", "item", "category", "tx_type", "method"},
 }
 INACTIVE_COMPATIBILITY_FIELDS = {
     "alipay": {"status", "full-match"},
@@ -114,7 +115,9 @@ def _check_rule_list(
         active_fields = ACTIVE_MATCH_FIELDS[provider]
         if not (set(rule) & active_fields):
             report.warnings.append(f"{location}: 没有匹配条件，会匹配所有交易")
-        for field_name in sorted(set(rule) & INACTIVE_COMPATIBILITY_FIELDS[provider]):
+        for field_name in sorted(
+            set(rule) & INACTIVE_COMPATIBILITY_FIELDS[provider]
+        ):
             report.warnings.append(
                 f"{location}.{field_name}: 为兼容保留，但当前不参与规则解析"
             )
@@ -123,7 +126,9 @@ def _check_rule_list(
         try:
             if minimum is not None and maximum is not None:
                 if Decimal(str(minimum)) > Decimal(str(maximum)):
-                    report.errors.append(f"{location}: 最小金额不能大于最大金额")
+                    report.errors.append(
+                        f"{location}: 最小金额不能大于最大金额"
+                    )
         except Exception:
             # Pydantic reports the precise validation error below.
             pass
@@ -133,7 +138,9 @@ def _check_jobs(
     report: DiagnosticReport, jobs: Any, supported_providers: tuple[str, ...]
 ) -> None:
     if jobs is None:
-        report.info.append("sync: 未配置 jobs；bill convert/import 仍可正常使用")
+        report.info.append(
+            "sync: 未配置 jobs；bill convert/import 仍可正常使用"
+        )
         return
     if not isinstance(jobs, dict):
         return
@@ -149,7 +156,9 @@ def _check_jobs(
             ZoneInfo(str(timezone))
         except ZoneInfoNotFoundError:
             report.errors.append(f"{location}.timezone: 未知时区 {timezone}")
-        _warn_unknown(report, job.get("routing"), RoutingConfig, f"{location}.routing")
+        _warn_unknown(
+            report, job.get("routing"), RoutingConfig, f"{location}.routing"
+        )
         sources = job.get("sources")
         if isinstance(sources, list):
             for index, source in enumerate(sources):
@@ -165,11 +174,15 @@ def _check_jobs(
         if isinstance(validators, list):
             for index, validator in enumerate(validators):
                 validator_location = f"{location}.validators[{index}]"
-                _warn_unknown(report, validator, ValidatorConfig, validator_location)
+                _warn_unknown(
+                    report, validator, ValidatorConfig, validator_location
+                )
                 if isinstance(validator, dict) and validator.get("cwd"):
                     cwd = Path(str(validator["cwd"])).expanduser()
                     if not cwd.is_dir():
-                        report.warnings.append(f"{validator_location}.cwd: 目录不存在")
+                        report.warnings.append(
+                            f"{validator_location}.cwd: 目录不存在"
+                        )
 
 
 def diagnose_config(
@@ -194,7 +207,9 @@ def diagnose_config(
 
     template = raw.get("template-file")
     if isinstance(template, str) and template and not Path(template).is_file():
-        report.errors.append(f"config.template-file: 模板文件不存在: {template}")
+        report.errors.append(
+            f"config.template-file: 模板文件不存在: {template}"
+        )
 
     repayments = raw.get("foreign-credit-card-repayments")
     if isinstance(repayments, list):
@@ -229,7 +244,9 @@ def diagnose_config(
     if not currency:
         report.warnings.append("config.default-currency: 未配置默认币种")
     elif not re.fullmatch(r"[A-Z][A-Z0-9_'.-]{0,23}", str(currency)):
-        report.warnings.append("config.default-currency: 币种格式可能不符合 Beancount")
+        report.warnings.append(
+            "config.default-currency: 币种格式可能不符合 Beancount"
+        )
 
     try:
         Config.model_validate(raw)

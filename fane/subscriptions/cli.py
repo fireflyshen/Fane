@@ -14,14 +14,18 @@ subscriptions_app = typer.Typer(
 SubscriptionsOption = Annotated[
     Path | None,
     typer.Option(
-        "--subscriptions", help="订阅 JSON；默认 Fane YAML 同目录的 subscriptions.json"
+        "--subscriptions",
+        help="订阅 JSON；默认 Fane YAML 同目录的 subscriptions.json",
     ),
 ]
 
 
 def _plan_path(ctx: typer.Context, plan: Path | None) -> Path:
     return (
-        (plan or get_cli_context(ctx).config_path.with_name("subscriptions.json"))
+        (
+            plan
+            or get_cli_context(ctx).config_path.with_name("subscriptions.json")
+        )
         .expanduser()
         .resolve()
     )
@@ -30,7 +34,9 @@ def _plan_path(ctx: typer.Context, plan: Path | None) -> Path:
 def _service(
     ctx: typer.Context, ledger: Path | None, plan: Path | None
 ) -> SubscriptionService:
-    return SubscriptionService(context(ledger, ctx).ledger, _plan_path(ctx, plan))
+    return SubscriptionService(
+        context(ledger, ctx).ledger, _plan_path(ctx, plan)
+    )
 
 
 @subscriptions_app.command("init")
@@ -39,7 +45,9 @@ def initialize(
     output: Annotated[
         Path | None, typer.Option("--output", "-o", help="订阅 JSON 的创建位置")
     ] = None,
-    force: Annotated[bool, typer.Option("--force", help="覆盖已有计划文件")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", help="覆盖已有计划文件")
+    ] = False,
 ):
     """创建暂停状态的示例订阅；修改账户并启用后使用。"""
     with command_errors("订阅初始化失败"):
@@ -60,7 +68,9 @@ def check(
     ctx: typer.Context,
     ledger: LedgerOption = None,
     subscriptions: SubscriptionsOption = None,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 检查结果")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 检查结果")
+    ] = False,
 ):
     """只读检查计划、账本、账户和币种。"""
     with command_errors("订阅检查失败"):
@@ -80,22 +90,30 @@ def generate(
     ] = None,
     until: Annotated[
         str | None,
-        typer.Option("--until", help="从订阅起始日生成到 YYYY-MM-DD；默认本机今天"),
+        typer.Option(
+            "--until", help="从订阅起始日生成到 YYYY-MM-DD；默认本机今天"
+        ),
     ] = None,
     write: Annotated[
-        bool, typer.Option("--write", help="正式追加分录并更新 include；默认仅预览")
+        bool,
+        typer.Option("--write", help="正式追加分录并更新 include；默认仅预览"),
     ] = False,
     as_json: Annotated[
         bool, typer.Option("--json", help="JSON 结果，包含每笔分录文本")
     ] = False,
     template: Annotated[
-        Path | None, typer.Option("--template", help="本次使用的自定义 Jinja2 模板")
+        Path | None,
+        typer.Option("--template", help="本次使用的自定义 Jinja2 模板"),
     ] = None,
 ):
     """生成缺少的月度分录；正式写入后检查账本，失败回滚。"""
     with command_errors("订阅生成失败"):
         cli = get_cli_context(ctx)
-        if template is None and cli.config_path.is_file() and cli.config.template_file:
+        if (
+            template is None
+            and cli.config_path.is_file()
+            and cli.config.template_file
+        ):
             template = Path(cli.config.template_file)
         result = _service(ctx, ledger, subscriptions).generate(
             month=month, until=until, write=write, template_file=template

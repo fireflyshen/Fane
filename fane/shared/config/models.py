@@ -60,7 +60,9 @@ class SyncJob(BaseModel):
     state_file: Optional[str] = Field(alias="state-file", default=None)
     lock_file: Optional[str] = Field(alias="lock-file", default=None)
     dedupe_index: Optional[str] = Field(alias="dedupe-index", default=None)
-    on_missing: Literal["skip", "error"] = Field(alias="on-missing", default="skip")
+    on_missing: Literal["skip", "error"] = Field(
+        alias="on-missing", default="skip"
+    )
     require_classified: bool = Field(alias="require-classified", default=False)
     change_detection: Literal["sha256", "none"] = Field(
         alias="change-detection", default="sha256"
@@ -102,11 +104,13 @@ class Config(BaseModel):
     default_third_party_custody_account: Optional[str] = Field(
         alias="default-third-party-custody-account", default=None
     )
-    default_currency: Optional[str] = Field(alias="default-currency", default=None)
+    default_currency: Optional[str] = Field(
+        alias="default-currency", default=None
+    )
     ali: Optional[ALi] = Field(alias="alipay", default=None)
     wechat: Optional[WeChat] = Field(alias="wechat", default=None)
-    foreign_credit_card_repayments: Optional[list[ForeignCreditCardRepayment]] = Field(
-        alias="foreign-credit-card-repayments", default=None
-    )
+    foreign_credit_card_repayments: Optional[
+        list[ForeignCreditCardRepayment]
+    ] = Field(alias="foreign-credit-card-repayments", default=None)
     jobs: Optional[dict[str, SyncJob]] = None
     ledger: LedgerSettings = Field(default_factory=LedgerSettings)

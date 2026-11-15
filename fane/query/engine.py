@@ -38,7 +38,9 @@ def decimal_text(value: Decimal) -> str:
     return format(value, "f")
 
 
-def add_amount(target: dict[str, Decimal], currency: str, number: Decimal) -> None:
+def add_amount(
+    target: dict[str, Decimal], currency: str, number: Decimal
+) -> None:
     target[currency] += number
 
 
@@ -112,7 +114,9 @@ def serialize_cost(cost: Any) -> dict[str, Any] | None:
     if cost is None:
         return None
     result = {
-        "number": decimal_text(cost.number) if cost.number is not None else None,
+        "number": decimal_text(cost.number)
+        if cost.number is not None
+        else None,
         "currency": cost.currency,
     }
     if getattr(cost, "date", None) is not None:
@@ -155,7 +159,8 @@ def transaction_kind(entry: Transaction) -> str:
     liability_numbers = [
         posting.units.number
         for posting in entry.postings
-        if posting.account.startswith("Liabilities:") and posting.units is not None
+        if posting.account.startswith("Liabilities:")
+        and posting.units is not None
     ]
     if liability_numbers:
         if all(number >= 0 for number in liability_numbers):
@@ -178,16 +183,22 @@ def transaction_recognition(entry: Transaction) -> str:
         return str(explicit)
 
     accounts = {posting.account for posting in entry.postings}
-    recognizes_expense = any(account.startswith("Expenses:") for account in accounts)
+    recognizes_expense = any(
+        account.startswith("Expenses:") for account in accounts
+    )
     offsets_accrued_liability = any(
-        account.startswith(("Liabilities:Accrued:", "Liabilities:AccruedExpenses:"))
+        account.startswith(
+            ("Liabilities:Accrued:", "Liabilities:AccruedExpenses:")
+        )
         for account in accounts
     )
     consumes_prepayment = any(
         account.startswith(("Assets:Prepaid:", "Assets:PrepaidExpenses:"))
         for account in accounts
     )
-    if recognizes_expense and (offsets_accrued_liability or consumes_prepayment):
+    if recognizes_expense and (
+        offsets_accrued_liability or consumes_prepayment
+    ):
         return "accrual"
     return "cash"
 
@@ -233,7 +244,8 @@ def query_entries(
     selected = [
         entry
         for entry in entries
-        if isinstance(entry, Transaction) and start_date <= entry.date <= end_date
+        if isinstance(entry, Transaction)
+        and start_date <= entry.date <= end_date
     ]
     selected.sort(
         key=lambda entry: (
@@ -277,7 +289,9 @@ def query_entries(
                 economic_amount = -number
                 add_amount(net_income, currency, economic_amount)
                 add_amount(
-                    income_by_account[posting.account], currency, economic_amount
+                    income_by_account[posting.account],
+                    currency,
+                    economic_amount,
                 )
                 if number < 0:
                     add_amount(gross_income, currency, -number)
@@ -285,13 +299,17 @@ def query_entries(
                     add_amount(income_reversals, currency, number)
             elif posting.account.startswith("Expenses:"):
                 add_amount(net_expenses, currency, number)
-                add_amount(expenses_by_account[posting.account], currency, number)
+                add_amount(
+                    expenses_by_account[posting.account], currency, number
+                )
                 if number > 0:
                     add_amount(gross_expenses, currency, number)
                 elif number < 0:
                     add_amount(expense_refunds, currency, -number)
             else:
-                add_amount(balance_sheet_changes[posting.account], currency, number)
+                add_amount(
+                    balance_sheet_changes[posting.account], currency, number
+                )
 
     returned = selected[:max_transactions]
     truncated = len(returned) < len(selected)
@@ -328,8 +346,12 @@ def query_entries(
         },
         "income_by_account": rendered_account_amounts(income_by_account),
         "expenses_by_account": rendered_account_amounts(expenses_by_account),
-        "balance_sheet_changes": rendered_account_amounts(balance_sheet_changes),
-        "transactions": [transaction_json(entry, ledger_root) for entry in returned],
+        "balance_sheet_changes": rendered_account_amounts(
+            balance_sheet_changes
+        ),
+        "transactions": [
+            transaction_json(entry, ledger_root) for entry in returned
+        ],
         "warnings": warnings,
     }
 

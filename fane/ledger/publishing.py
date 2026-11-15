@@ -58,7 +58,9 @@ def publish_snapshot(
     client.put_object(
         Bucket=bucket,
         Key=key,
-        Body=json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).encode(),
+        Body=json.dumps(
+            snapshot, ensure_ascii=False, separators=(",", ":")
+        ).encode(),
         ContentType="application/json",
         Metadata={
             "bills-version": version,

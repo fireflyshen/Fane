@@ -33,9 +33,13 @@ def validate_month(month):
 class Reports:
     """Ledger observations, one delivery claim, and immutable sent revisions."""
 
-    def __init__(self, root=ROOT, now=current_month, ledger=None, clock=time.time):
+    def __init__(
+        self, root=ROOT, now=current_month, ledger=None, clock=time.time
+    ):
         self.root, self.now, self.clock = root, now, clock
-        self.settings = json.loads((root / "config/monthly-report.json").read_text())
+        self.settings = json.loads(
+            (root / "config/monthly-report.json").read_text()
+        )
         self.floor = validate_month(self.settings["start_month"])
         directory = root / "state/monthly-reports"
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -57,7 +61,9 @@ class Reports:
             CREATE TABLE IF NOT EXISTS automatic_notices(month TEXT PRIMARY KEY,
               notified_at REAL NOT NULL);
         """)
-        columns = {r["name"] for r in self.db.execute("PRAGMA table_info(reports)")}
+        columns = {
+            r["name"] for r in self.db.execute("PRAGMA table_info(reports)")
+        }
         for name, kind in [
             ("semantic_hash", "TEXT"),
             ("revision", "INTEGER DEFAULT 1"),
@@ -103,7 +109,10 @@ class Reports:
                         json.dumps(
                             [
                                 hashes.get(m) or hashlib.sha256(b"").hexdigest()
-                                for m in (row["month"], previous_month(row["month"]))
+                                for m in (
+                                    row["month"],
+                                    previous_month(row["month"]),
+                                )
                             ]
                         ).encode()
                     ).hexdigest()
@@ -154,9 +163,14 @@ class Reports:
         if month != previous_month(self.now()):
             return "automatic-only-previous-month"
         today = datetime.fromtimestamp(self.clock(), ZoneInfo("Asia/Shanghai"))
-        if today.strftime("%Y-%m") != self.now() or (today.day, today.hour) < (3, 10):
+        if today.strftime("%Y-%m") != self.now() or (today.day, today.hour) < (
+            3,
+            10,
+        ):
             return "before-monthly-check"
-        if self.db.execute("SELECT 1 FROM reports WHERE month=?", (month,)).fetchone():
+        if self.db.execute(
+            "SELECT 1 FROM reports WHERE month=?", (month,)
+        ).fetchone():
             return "already-generated"
         if self.db.execute(
             "SELECT 1 FROM automatic_attempts WHERE month=?", (month,)
@@ -188,7 +202,9 @@ class Reports:
         raw = source.read_text() if source.is_file() else ""
         if re.search("fixme", text + "\n" + raw, re.I):
             return "fixme"
-        job = self.db.execute("SELECT * FROM jobs WHERE month=?", (month,)).fetchone()
+        job = self.db.execute(
+            "SELECT * FROM jobs WHERE month=?", (month,)
+        ).fetchone()
         if job and job["status"] in ("generated", "sending"):
             return "delivery-pending"  # Never retry a possibly delivered email.
         if (
@@ -216,13 +232,13 @@ class Reports:
         latest_change = self.db.execute(
             "SELECT MAX(changed_at) FROM observations"
         ).fetchone()[0]
-        if self.clock() - latest_change < self.settings.get("settle_seconds", 600):
+        if self.clock() - latest_change < self.settings.get(
+            "settle_seconds", 600
+        ):
             return "settling"
         if not row:
             year, number = map(int, month.split("-"))
-            next_month = (
-                f"{year + (number == 12):04d}-{number + 1 if number < 12 else 1:02d}"
-            )
+            next_month = f"{year + (number == 12):04d}-{number + 1 if number < 12 else 1:02d}"
             activity = self.db.execute(
                 "SELECT value FROM activity WHERE key='updated_in'"
             ).fetchone()
@@ -241,13 +257,17 @@ class Reports:
         month = previous_month(self.now())
         reason = self.check(month, automatic=True)
         if reason is None:
-            return [{"analysisMonth": month, "automatic": True, "dryRun": dry_run}]
+            return [
+                {"analysisMonth": month, "automatic": True, "dryRun": dry_run}
+            ]
         if reason.startswith("missing-bills:") or reason in (
             "fixme",
             "no-transactions",
         ):
             if dry_run:
-                return [{"analysisMonth": month, "notice": reason, "dryRun": True}]
+                return [
+                    {"analysisMonth": month, "notice": reason, "dryRun": True}
+                ]
             with self.db:
                 cursor = self.db.execute(
                     "INSERT OR IGNORE INTO automatic_notices VALUES(?,?)",
@@ -281,7 +301,11 @@ class Reports:
             if request.get("dryRun") is True:
                 reason = reason or "dry-run"
             if reason:
-                return {"eligible": False, "analysisMonth": month, "reason": reason}
+                return {
+                    "eligible": False,
+                    "analysisMonth": month,
+                    "reason": reason,
+                }
             previous = self.db.execute(
                 "SELECT * FROM reports WHERE month=?", (month,)
             ).fetchone()
@@ -377,13 +401,21 @@ class Reports:
                 (month, request["claimToken"]),
             ).fetchone()
             if not row:
-                raise ValueError("Delivery already started or receipt uncertain")
+                raise ValueError(
+                    "Delivery already started or receipt uncertain"
+                )
             if row["source_hash"] != self.source_hash(month):
                 self.db.execute(
-                    "DELETE FROM jobs WHERE month=? AND status='generated'", (month,)
+                    "DELETE FROM jobs WHERE month=? AND status='generated'",
+                    (month,),
                 )
-                return {"eligible": False, "reason": "ledger-changed-before-send"}
-            self.db.execute("UPDATE jobs SET status='sending' WHERE month=?", (month,))
+                return {
+                    "eligible": False,
+                    "reason": "ledger-changed-before-send",
+                }
+            self.db.execute(
+                "UPDATE jobs SET status='sending' WHERE month=?", (month,)
+            )
         return {
             **json.loads(row["report_json"]),
             "claimToken": row["token"],
@@ -402,10 +434,13 @@ class Reports:
         target = f"{year + (number == 12):04d}-{number + 1 if number < 12 else 1:02d}"
         with sqlite3.connect(path, timeout=30) as db:
             if revision == 1:
-                for index, action in enumerate(report.get("new_actions", []), 1):
+                for index, action in enumerate(
+                    report.get("new_actions", []), 1
+                ):
                     identifier = f"{target}-{index:02d}"
                     if db.execute(
-                        f"SELECT 1 FROM {table} WHERE action_id=?", (identifier,)
+                        f"SELECT 1 FROM {table} WHERE action_id=?",
+                        (identifier,),
                     ).fetchone():
                         continue
                     fields = [
@@ -455,7 +490,13 @@ class Reports:
         with self.db:
             self.db.execute(
                 "INSERT OR IGNORE INTO history VALUES(?,?,?,?,?)",
-                (month, row["revision"], row["source_hash"], now, row["report_json"]),
+                (
+                    month,
+                    row["revision"],
+                    row["source_hash"],
+                    now,
+                    row["report_json"],
+                ),
             )
             self.db.execute(
                 """INSERT INTO reports(month,status,token,source_hash,semantic_hash,revision,generated_at,sent_at,report_json)
@@ -474,14 +515,22 @@ class Reports:
                 ),
             )
             self.db.execute(
-                "UPDATE jobs SET status='sent',sent_at=? WHERE month=?", (now, month)
+                "UPDATE jobs SET status='sent',sent_at=? WHERE month=?",
+                (now, month),
             )
-        return {"sent": True, "analysisMonth": month, "revision": row["revision"]}
+        return {
+            "sent": True,
+            "analysisMonth": month,
+            "revision": row["revision"],
+        }
 
     def release(self, request):
         with self.db:
             self.db.execute(
                 "DELETE FROM jobs WHERE month=? AND status='processing' AND token=?",
-                (validate_month(request["analysisMonth"]), request["claimToken"]),
+                (
+                    validate_month(request["analysisMonth"]),
+                    request["claimToken"],
+                ),
             )
         return {"released": True}

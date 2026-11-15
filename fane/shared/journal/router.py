@@ -14,7 +14,9 @@ class JournalRouter:
 
     def target_file(self, entry: RenderedEntry) -> Path:
         template = (
-            self.routing.income if entry.kind == "income" else self.routing.expense
+            self.routing.income
+            if entry.kind == "income"
+            else self.routing.expense
         )
         try:
             rendered = template.format(
@@ -24,14 +26,20 @@ class JournalRouter:
                 provider=entry.source_provider,
             )
         except (KeyError, ValueError) as error:
-            raise SyncError(f"无效的 routing 模板 {template!r}: {error}") from error
+            raise SyncError(
+                f"无效的 routing 模板 {template!r}: {error}"
+            ) from error
 
         relative = Path(rendered)
         if relative.is_absolute() or ".." in relative.parts:
-            raise SyncError(f"routing 只能生成 journal-dir 内的相对路径: {rendered}")
+            raise SyncError(
+                f"routing 只能生成 journal-dir 内的相对路径: {rendered}"
+            )
         target = (self.journal_dir / relative).resolve()
         try:
             target.relative_to(self.journal_dir)
         except ValueError as error:
-            raise SyncError(f"routing 路径越过 journal-dir: {rendered}") from error
+            raise SyncError(
+                f"routing 路径越过 journal-dir: {rendered}"
+            ) from error
         return target

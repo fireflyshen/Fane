@@ -49,7 +49,9 @@ def get_public_meta_data(ali_order: AliOrder) -> Order:
         type=convert_type(ali_order.type),
         type_original=ali_order.type_original,
         note=ali_order.notes,
-        merchant_order_id=ali_order.merchant_id if ali_order.merchant_id else None,
+        merchant_order_id=ali_order.merchant_id
+        if ali_order.merchant_id
+        else None,
     )
 
 

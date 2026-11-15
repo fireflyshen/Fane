@@ -16,7 +16,9 @@ class Policy(BaseModel):
     disallowed_segments: set[str] = Field(
         default_factory=set, alias="disallowed-segments"
     )
-    allowed_accounts: set[str] = Field(default_factory=set, alias="allowed-accounts")
+    allowed_accounts: set[str] = Field(
+        default_factory=set, alias="allowed-accounts"
+    )
 
 
 class Assertions(BaseModel):
@@ -25,7 +27,9 @@ class Assertions(BaseModel):
     index: str | None = None
     ignored_prefixes: tuple[str, ...] = Field((), alias="ignored-prefixes")
     precision: int = Field(2, ge=0)
-    filename_template: str = Field("{date:%Y-%m}.bean", alias="filename-template")
+    filename_template: str = Field(
+        "{date:%Y-%m}.bean", alias="filename-template"
+    )
 
 
 class SnapshotSettings(BaseModel):
@@ -44,7 +48,9 @@ class LedgerSettings(BaseModel):
 
 
 class LedgerContext:
-    def __init__(self, ledger: Path, settings: LedgerSettings, config: Path | None):
+    def __init__(
+        self, ledger: Path, settings: LedgerSettings, config: Path | None
+    ):
         self.ledger = ledger
         self.root = ledger.parent
         self.settings = settings
@@ -52,7 +58,11 @@ class LedgerContext:
 
     def output_path(self, value: str | Path) -> Path:
         path = Path(value).expanduser()
-        return path.resolve() if path.is_absolute() else (self.root / path).resolve()
+        return (
+            path.resolve()
+            if path.is_absolute()
+            else (self.root / path).resolve()
+        )
 
 
 def resolve_context(
@@ -65,10 +75,16 @@ def resolve_context(
         if not isinstance(data, dict):
             raise ValueError("Fane config must be a YAML object")
         settings = LedgerSettings.model_validate(data.get("ledger", {}))
-    explicit = ledger or os.environ.get("FANE_LEDGER") or os.environ.get("BILLS_LEDGER")
+    explicit = (
+        ledger
+        or os.environ.get("FANE_LEDGER")
+        or os.environ.get("BILLS_LEDGER")
+    )
     location = explicit or settings.file
     if not location:
-        raise ValueError("Specify --ledger, FANE_LEDGER, or ledger.file in Fane config")
+        raise ValueError(
+            "Specify --ledger, FANE_LEDGER, or ledger.file in Fane config"
+        )
     path = Path(location).expanduser()
     if not path.is_absolute():
         path = (Path.cwd() if explicit else config.parent) / path

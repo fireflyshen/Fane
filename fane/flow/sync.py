@@ -12,7 +12,8 @@ from pathlib import Path
 def handle(meta, config, *, root: Path):
     raw = base64.b64decode(meta["body"], validate=True)
     expected = (
-        "sha256=" + hmac.new(config["secret"].encode(), raw, hashlib.sha256).hexdigest()
+        "sha256="
+        + hmac.new(config["secret"].encode(), raw, hashlib.sha256).hexdigest()
     )
     if not hmac.compare_digest(expected, meta.get("signature", "")):
         return 401, "Invalid signature"
@@ -36,7 +37,10 @@ def handle(meta, config, *, root: Path):
         try:
             path = config["repository"]
             subprocess.run(
-                ["git", "merge", "--abort"], cwd=path, capture_output=True, timeout=30
+                ["git", "merge", "--abort"],
+                cwd=path,
+                capture_output=True,
+                timeout=30,
             )
             for args in [
                 ["fetch", "origin", config["branch"]],

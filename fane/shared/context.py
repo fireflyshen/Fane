@@ -35,7 +35,9 @@ def get_cli_context(ctx: typer.Context) -> CliContext:
 
 LedgerOption = Annotated[
     Path | None,
-    typer.Option("--ledger", help="账本入口；也可用 FANE_LEDGER 或配置 ledger.file"),
+    typer.Option(
+        "--ledger", help="账本入口；也可用 FANE_LEDGER 或配置 ledger.file"
+    ),
 ]
 
 

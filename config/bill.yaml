@@ -463,8 +463,8 @@ ledger:
     allowed-accounts:
       - Expenses:FIXME
   assertions:
-    output-dir: assertion/data
-    index: assertion/index.bean
+    output-dir: assertions
+    index: assertions/index.bean
     ignored-prefixes:
       - Assets:Prepaid
       - Assets:Clearing

@@ -23,7 +23,8 @@ def output_text(content: str, output: str = "-") -> None:
         target = Path(output).expanduser()
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
-            content if content.endswith("\n") else content + "\n", encoding="utf-8"
+            content if content.endswith("\n") else content + "\n",
+            encoding="utf-8",
         )
 
 
@@ -41,7 +42,8 @@ def command_errors(label: str, *, code: int = 1, json_error: bool = False):
         if json_error:
             typer.echo(
                 json.dumps(
-                    {"status": "rejected", "error": str(error)}, ensure_ascii=False
+                    {"status": "rejected", "error": str(error)},
+                    ensure_ascii=False,
                 ),
                 err=True,
             )

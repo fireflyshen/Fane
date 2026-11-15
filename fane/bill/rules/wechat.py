@@ -18,10 +18,16 @@ WECHAT_RESOLVER = RuleAccountResolver(
 
 
 class WechatAnalyser:
-    def get_account_and_tags(self, o: Order, cfg: Config) -> AccountResolutionTuple:
+    def get_account_and_tags(
+        self, o: Order, cfg: Config
+    ) -> AccountResolutionTuple:
 
         # 如果没有配置规则，返回事先配置的默认配置
-        if cfg.wechat is None or cfg.wechat.rules is None or len(cfg.wechat.rules) == 0:
+        if (
+            cfg.wechat is None
+            or cfg.wechat.rules is None
+            or len(cfg.wechat.rules) == 0
+        ):
             return (
                 False,
                 cfg.default_minus_account,

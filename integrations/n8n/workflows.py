@@ -84,15 +84,21 @@ def inline(w, call, child):
     for groups in w["connections"].values():
         for kind, outputs in groups.items():
             for index, targets in enumerate(outputs):
-                groups[kind][index] = [e for e in targets if e["node"] != call] + (
-                    deepcopy(roots) if any(e["node"] == call for e in targets) else []
+                groups[kind][index] = [
+                    e for e in targets if e["node"] != call
+                ] + (
+                    deepcopy(roots)
+                    if any(e["node"] == call for e in targets)
+                    else []
                 )
     for name, groups in child["connections"].items():
         if name != trigger:
             w["connections"][name] = deepcopy(groups)
     for n in incoming:
         groups = w["connections"].get(n["name"], {})
-        if not groups.get("main") and not any(k.startswith("ai_") for k in groups):
+        if not groups.get("main") and not any(
+            k.startswith("ai_") for k in groups
+        ):
             w["connections"][n["name"]] = {"main": [deepcopy(outgoing)]}
     return w
 
@@ -180,7 +186,13 @@ def bills(source):
         ),
     ]:
         w["nodes"].append(
-            note(w, title, text, [n for n in w["nodes"] if n["name"] in names], color)
+            note(
+                w,
+                title,
+                text,
+                [n for n in w["nodes"] if n["name"] in names],
+                color,
+            )
         )
     return w
 
@@ -293,7 +305,9 @@ def book(source):
     valid = node(
         "报告有效",
         "if",
-        deepcopy(next(n for n in w["nodes"] if n["name"] == "需要报告")["parameters"]),
+        deepcopy(
+            next(n for n in w["nodes"] if n["name"] == "需要报告")["parameters"]
+        ),
         2.2,
     )
     valid["parameters"]["conditions"]["conditions"][0]["leftValue"] = (
@@ -430,7 +444,9 @@ def book(source):
         "报告失败": (4160, 620),
     }
     positions.update({"分析上下文": (1920, 480), "报告有效": (2560, 480)})
-    w["nodes"] = [n for n in w["nodes"] if not n["type"].endswith(".stickyNote")]
+    w["nodes"] = [
+        n for n in w["nodes"] if not n["type"].endswith(".stickyNote")
+    ]
     for n in w["nodes"]:
         n["position"] = list(positions[n["name"]])
     for title, text, names, color in [
@@ -466,7 +482,13 @@ def book(source):
         ),
     ]:
         w["nodes"].append(
-            note(w, title, text, [n for n in w["nodes"] if n["name"] in names], color)
+            note(
+                w,
+                title,
+                text,
+                [n for n in w["nodes"] if n["name"] in names],
+                color,
+            )
         )
     return w
 
@@ -519,6 +541,40 @@ def project_commands(w):
         if n["name"] == "提交":
             command = "=/usr/local/bin/fa flow commit"
         n["parameters"]["command"] = command
+    return bill_recovery(w) if w["id"] == BILL else w
+
+
+def bill_recovery(w):
+    """Resume a saved preparation without fetching the mail or download link."""
+    nodes = {n["name"]: n for n in w["nodes"]}
+    prepare = nodes["解密并准备"]
+    prepare["parameters"]["command"] = (
+        "=/usr/local/bin/fa flow bill prepare '{{ $json.meta_b64 || $('识别账单').item.json.meta_b64 }}'"
+    )
+    schedule = node(
+        "重试账单定时",
+        "scheduleTrigger",
+        {"rule": {"interval": [{"field": "hours", "hoursInterval": 1}]}},
+        1.2,
+    )
+    claim = ssh(
+        "领取待重试账单",
+        "=/usr/local/bin/fa flow bill pending",
+        prepare["credentials"],
+    )
+    unpack = code(
+        "恢复已保存账单",
+        "if ($json.code !== 0) throw new Error('读取待重试账单失败');\n"
+        "return JSON.parse($json.stdout).map(json => ({json}));",
+    )
+    for i, n in enumerate((schedule, claim, unpack)):
+        n["position"] = [320 + i * 320, 700]
+        w["nodes"] = [old for old in w["nodes"] if old["name"] != n["name"]] + [
+            n
+        ]
+    w["connections"][schedule["name"]] = {"main": [[edge(claim["name"])]]}
+    w["connections"][claim["name"]] = {"main": [[edge(unpack["name"])]]}
+    w["connections"][unpack["name"]] = {"main": [[edge(prepare["name"])]]}
     return w
 
 
@@ -600,10 +656,16 @@ def monthly_rule(w, model_template=None):
         "模型调用限制",
         "code",
         {
-            "code": {"supplyData": {"code": (HERE / "model_guard.js").read_text()}},
+            "code": {
+                "supplyData": {"code": (HERE / "model_guard.js").read_text()}
+            },
             "inputs": {
                 "input": [
-                    {"type": "ai_languageModel", "maxConnections": 1, "required": True}
+                    {
+                        "type": "ai_languageModel",
+                        "maxConnections": 1,
+                        "required": True,
+                    }
                 ]
             },
             "outputs": {"output": [{"type": "ai_languageModel"}]},
@@ -629,7 +691,9 @@ def monthly_rule(w, model_template=None):
         w["nodes"].append(model)
         connected = [model["name"]]
     if len(connected) != 1:
-        raise ValueError("Exactly one model connection required for monthly reports")
+        raise ValueError(
+            "Exactly one model connection required for monthly reports"
+        )
     w["connections"][connected[0]] = {
         "ai_languageModel": [
             [{"node": guard["name"], "type": "ai_languageModel", "index": 0}]
@@ -645,7 +709,11 @@ def monthly_rule(w, model_template=None):
     schedule = nodes["检查月报"]
     schedule["disabled"] = False
     schedule["parameters"] = {
-        "rule": {"interval": [{"field": "cronExpression", "expression": "0 10 3 * *"}]}
+        "rule": {
+            "interval": [
+                {"field": "cronExpression", "expression": "0 10 3 * *"}
+            ]
+        }
     }
     w["settings"]["timezone"] = "Asia/Shanghai"
     nodes["待发月份"]["parameters"]["command"] = (
@@ -729,7 +797,9 @@ def build(pairs):
     indexed = {p["draft"]["id"]: p for p in pairs}
     if "-woXn2NFfexoVljeyJCQ-" not in indexed:
         assert KEEP.issubset(indexed), "Missing financial workflow"
-        output = [deepcopy(indexed[wid]) for wid in (BILL, BOOK, CHAT, SCREEN, ALERT)]
+        output = [
+            deepcopy(indexed[wid]) for wid in (BILL, BOOK, CHAT, SCREEN, ALERT)
+        ]
         for pair in output:
             for w in pair.values():
                 project_commands(w)
@@ -742,7 +812,9 @@ def build(pairs):
                             )
                         if n["name"] == "报告":
                             existing = n["parameters"]["jsCode"]
-                            tail = existing[existing.index("\nconst context=") :]
+                            tail = existing[
+                                existing.index("\nconst context=") :
+                            ]
                             n["parameters"]["jsCode"] = (
                                 HERE / "report.js"
                             ).read_text() + tail
@@ -751,7 +823,10 @@ def build(pairs):
             BILL: {"name": "账单入账", "tags": ["财务", "账单"]},
             BOOK: {"name": "账本更新", "tags": ["财务", "同步", "月报"]},
             CHAT: {"name": "账单问答", "tags": ["财务", "查询"]},
-            SCREEN: {"name": "屏幕时间周报", "tags": ["生活", "屏幕时间", "未启用"]},
+            SCREEN: {
+                "name": "屏幕时间周报",
+                "tags": ["生活", "屏幕时间", "未启用"],
+            },
             ALERT: {"name": "执行告警", "tags": ["运维", "告警"]},
         }
         return {
@@ -789,14 +864,19 @@ def build(pairs):
         BILL: {"name": "账单入账", "tags": ["财务", "账单"]},
         BOOK: {"name": "账本更新", "tags": ["财务", "同步", "月报"]},
         CHAT: {"name": "账单问答", "tags": ["财务", "查询"]},
-        SCREEN: {"name": "屏幕时间周报", "tags": ["生活", "屏幕时间", "未启用"]},
+        SCREEN: {
+            "name": "屏幕时间周报",
+            "tags": ["生活", "屏幕时间", "未启用"],
+        },
         ALERT: {"name": "执行告警", "tags": ["运维", "告警"]},
     }
     removed = [
         {
             "id": p["draft"]["id"],
             "name": p["draft"]["name"],
-            "reason": "已合并" if p["draft"]["active"] else "未启用且无独立使用记录",
+            "reason": "已合并"
+            if p["draft"]["active"]
+            else "未启用且无独立使用记录",
         }
         for p in pairs
         if p["draft"]["id"] not in KEEP

@@ -57,7 +57,7 @@ def bill_command(
     payload: Annotated[str, typer.Argument()] = "",
     preview: bool = False,
 ):
-    """prepare：解压、入账并提取分类；finish：应用分类与生成订阅。"""
+    """prepare：解压入账；finish：分类订阅；pending：领取一个待重试账单。"""
     from .bill import BillFlow
 
     root = ctx.obj
@@ -65,8 +65,13 @@ def bill_command(
     bill = BillFlow(
         root, configured if configured.is_file() else root / "config/fane.yaml"
     )
+    if operation == "pending":
+        with lock(root) as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            emit(bill.pending())
+        return
     if operation not in ("prepare", "finish"):
-        raise typer.BadParameter("Use prepare or finish")
+        raise typer.BadParameter("Use prepare, finish or pending")
     meta = (
         request(payload)
         if operation == "prepare"
@@ -107,13 +112,21 @@ def report_command(
 
 
 @flow.command("sync")
-def sync_command(ctx: typer.Context, payload: Annotated[str, typer.Argument()] = ""):
+def sync_command(
+    ctx: typer.Context, payload: Annotated[str, typer.Argument()] = ""
+):
     """校验 GitHub 原始请求签名并同步账本；JSON 可从 stdin 输入。"""
     from . import sync
 
     config = json.loads((ctx.obj / "config/n8n-sync.json").read_text())
     status, message = sync.handle(request(payload), config, root=ctx.obj)
-    emit({"status": status, "message": message, "report": message == "Deploy success"})
+    emit(
+        {
+            "status": status,
+            "message": message,
+            "report": message == "Deploy success",
+        }
+    )
 
 
 @flow.command("commit")

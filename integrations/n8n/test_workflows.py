@@ -45,7 +45,10 @@ class WebhookTests(unittest.TestCase):
     def test_concurrent_write_cannot_sync(self):
         lock = self.root / "state/locks/n8n-finance.lock"
         lock.parent.mkdir(parents=True)
-        with lock.open("a") as handle, patch.object(sync.subprocess, "run") as run:
+        with (
+            lock.open("a") as handle,
+            patch.object(sync.subprocess, "run") as run,
+        ):
             sync.fcntl.flock(handle, sync.fcntl.LOCK_EX)
             self.assertEqual(self.request(b'{"ref":"refs/heads/main"}')[0], 409)
         run.assert_not_called()
@@ -60,7 +63,8 @@ class WebhookTests(unittest.TestCase):
             ],
         ) as run:
             self.assertEqual(
-                self.request(b'{"ref":"refs/heads/main"}'), (500, "Deploy failed")
+                self.request(b'{"ref":"refs/heads/main"}'),
+                (500, "Deploy failed"),
             )
         self.assertEqual(run.call_count, 2)
 

@@ -47,7 +47,9 @@ def get_public_meta_data(wechat_order: WechatOrder) -> Order:
         type_original=wechat_order.type_original,
         tx_type_original=wechat_order.tx_type_original,
         merchant_order_id=(
-            wechat_order.mechant_order_id if wechat_order.mechant_order_id else None
+            wechat_order.mechant_order_id
+            if wechat_order.mechant_order_id
+            else None
         ),
     )
 
@@ -63,4 +65,8 @@ def convert_type(deal_type: DealType) -> Type:
 
 
 def convert_to_ir(wechat_orders: list[WechatOrder]) -> IR:
-    return IR(orders=[config_meta_data(wechat_order) for wechat_order in wechat_orders])
+    return IR(
+        orders=[
+            config_meta_data(wechat_order) for wechat_order in wechat_orders
+        ]
+    )

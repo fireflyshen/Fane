@@ -48,7 +48,9 @@ def calculate_balances(
 
     results = []
     for account in sorted(open_dates.keys()):
-        if not (account.startswith("Assets:") or account.startswith("Liabilities:")):
+        if not (
+            account.startswith("Assets:") or account.startswith("Liabilities:")
+        ):
             continue
         if account in closed_accounts:
             continue
@@ -90,14 +92,20 @@ def render_assertions(
 
 
 def update_index(index_file: Path, target_rel_path: str) -> None:
-    content = index_file.read_text(encoding="utf-8") if index_file.exists() else ""
+    content = (
+        index_file.read_text(encoding="utf-8") if index_file.exists() else ""
+    )
     include_line = f'include "{target_rel_path}"'
     if include_line not in content:
         lines = [line for line in content.splitlines() if line.strip()]
         lines.append(include_line)
         # Keep includes sorted for consistency
-        include_lines = sorted({line for line in lines if line.startswith("include ")})
-        other_lines = [line for line in lines if not line.startswith("include ")]
+        include_lines = sorted(
+            {line for line in lines if line.startswith("include ")}
+        )
+        other_lines = [
+            line for line in lines if not line.startswith("include ")
+        ]
         new_content = "\n".join(other_lines + include_lines) + "\n"
         index_file.write_text(new_content, encoding="utf-8")
 
@@ -108,7 +116,8 @@ def write_assertions(output: Path, index: Path, text: str) -> None:
 
     relative = os.path.relpath(output, index.parent)
     originals = {
-        path: path.read_bytes() if path.exists() else None for path in (output, index)
+        path: path.read_bytes() if path.exists() else None
+        for path in (output, index)
     }
     try:
         output.parent.mkdir(parents=True, exist_ok=True)

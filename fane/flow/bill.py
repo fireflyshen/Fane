@@ -1,9 +1,13 @@
 """账单流程直接组合业务函数；n8n 只需调用 fa flow bill。"""
 
+import base64
 import hashlib
+import json
 import os
 import re
+import shutil
 import tempfile
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -27,6 +31,46 @@ class BillFlow:
     def ledger(self):
         return self.root / "data/account"
 
+    def _save_request(self, path, record):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=path.parent, delete=False
+        ) as f:
+            json.dump(record, f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+            temporary = f.name
+        os.replace(temporary, path)
+
+    def pending(self):
+        """Claim one failed preparation at a time; never repeat model/SMTP work."""
+        now = time.time()
+        for path in sorted((self.root / "state/bills/requests").glob("*.json")):
+            record = json.loads(path.read_text())
+            if (
+                record["status"]
+                not in ("processing", "failed", "retry_claimed")
+                or record.get("auto_attempts", 0) >= 3
+                or record.get("next_attempt", 0) > now
+            ):
+                continue
+            record.update(
+                status="retry_claimed",
+                auto_attempts=record.get("auto_attempts", 0) + 1,
+                next_attempt=now + 3600,
+            )
+            self._save_request(path, record)
+            meta = record["meta"]
+            return [
+                {
+                    "provider": meta["provider"],
+                    "meta_b64": base64.b64encode(
+                        json.dumps(meta).encode()
+                    ).decode(),
+                }
+            ]
+        return []
+
     def prepare(self, meta):
         provider = meta["provider"]
         if provider not in ("alipay", "wechat"):
@@ -35,17 +79,56 @@ class BillFlow:
         if not re.fullmatch(r"[A-Za-z0-9_-]+\.zip", identifier):
             raise ValueError("invalid temporary filename")
         incoming = self.root / "state/bills/incoming" / identifier
+        request_path = (
+            self.root / "state/bills/requests" / (identifier + ".json")
+        )
+        record = (
+            json.loads(request_path.read_text())
+            if request_path.exists()
+            else {}
+        )
+        if record and record["meta"]["provider"] != provider:
+            raise ValueError("retry provider differs from saved request")
         day = (
             meta.get("date")
+            or record.get("meta", {}).get("date")
             or datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
         )
+        if record and day != record["meta"]["date"]:
+            raise ValueError("retry date differs from saved request")
         datetime.strptime(day, "%Y-%m-%d")
         suffix = {"alipay": "csv", "wechat": "xlsx"}[provider]
         target = self.root / "data/bills" / provider
         target.mkdir(parents=True, exist_ok=True)
         stage = "unzip"
         try:
-            raw = unpack(incoming, suffix, meta.get("password"))
+            archive = self.root / "state/bills/archives" / identifier
+            if not meta.get("preview"):
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                if incoming.exists():
+                    if (
+                        archive.exists()
+                        and incoming.read_bytes() != archive.read_bytes()
+                    ):
+                        raise ValueError(
+                            "retry archive differs from saved request"
+                        )
+                    os.replace(incoming, archive)
+                record.update(
+                    meta={
+                        "provider": provider,
+                        "file": identifier,
+                        "date": day,
+                    },
+                    status="processing",
+                    next_attempt=time.time() + 3600,
+                )
+                self._save_request(request_path, record)
+            raw = unpack(
+                archive if archive.exists() else incoming,
+                suffix,
+                meta.get("password"),
+            )
             output = target / (day + "." + suffix)
             if meta.get("preview"):
                 if (
@@ -53,15 +136,19 @@ class BillFlow:
                     or hashlib.sha256(raw).digest()
                     != hashlib.sha256(output.read_bytes()).digest()
                 ):
-                    raise ValueError("preview bill differs from existing output")
+                    raise ValueError(
+                        "preview bill differs from existing output"
+                    )
             else:
-                with tempfile.NamedTemporaryFile(dir=target, delete=False) as temporary:
+                with tempfile.NamedTemporaryFile(
+                    dir=target, delete=False
+                ) as temporary:
                     temporary.write(raw)
                     temporary.flush()
                     os.fsync(temporary.fileno())
                     filename = temporary.name
                 os.replace(filename, output)
-                os.replace(incoming, target / (day + ".zip"))
+                shutil.copy2(archive, target / (day + ".zip"))
             stage = "import"
             config = load_config_model(self.config)
             if not config.jobs or "daily" not in config.jobs:
@@ -89,7 +176,8 @@ class BillFlow:
             report = (
                 SyncService(config, "daily", job)
                 .run(
-                    run_date=date.fromisoformat(day), dry_run=bool(meta.get("preview"))
+                    run_date=date.fromisoformat(day),
+                    dry_run=bool(meta.get("preview")),
                 )
                 .to_dict()
             )
@@ -114,6 +202,10 @@ class BillFlow:
                 payload.get("transactions"), list
             ):
                 raise RuntimeError(stage)
+            if not meta.get("preview"):
+                record.update(status="prepared")
+                record.pop("error", None)
+                self._save_request(request_path, record)
             return [
                 {
                     "ok": True,
@@ -129,6 +221,9 @@ class BillFlow:
             FaneError,
             zipfile.BadZipFile,
         ) as error:
+            if not meta.get("preview") and record:
+                record.update(status="failed", stage=stage, error=str(error))
+                self._save_request(request_path, record)
             return [
                 {
                     "ok": False,
@@ -137,8 +232,6 @@ class BillFlow:
                     "error": str(error),
                 }
             ]
-        finally:
-            incoming.unlink(missing_ok=True)
 
     def finish(self, meta):
         write = not meta.get("preview")
@@ -159,7 +252,8 @@ class BillFlow:
             stage = "subscriptions"
             config = load_config_model(self.config)
             results["subscriptions"] = SubscriptionService(
-                self.ledger / "main.bean", self.root / "config/subscriptions.json"
+                self.ledger / "main.bean",
+                self.root / "config/subscriptions.json",
             ).generate(
                 write=write,
                 template_file=Path(config.template_file)

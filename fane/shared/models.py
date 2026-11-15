@@ -30,11 +30,15 @@ class Account(Enum):
 
 @dataclass
 class Order:
-    order_type: OrderType = Field(default=OrderType.NORMAL, description="订单类型")
+    order_type: OrderType = Field(
+        default=OrderType.NORMAL, description="订单类型"
+    )
     peer: Optional[str] = Field(default=None, description="交易对手")
     item: str = Field(default="", description="商品名")
     category: str = Field(default="", description="分类")
-    merchant_order_id: Optional[str] = Field(default="", description="商户订单号")
+    merchant_order_id: Optional[str] = Field(
+        default="", description="商户订单号"
+    )
     order_id: str = Field(default="", description="内部订单号")
     money: Decimal = Field(default=Decimal("0.0"), description="金额")
     note: str = Field(default="", description="备注")
@@ -53,12 +57,20 @@ class Order:
     )
     minus_account: str = Field(default="", description="负向账户")
     plus_account: str = Field(default="", description="正向账户")
-    minus_str: str = Field(default="", description="负向字符串，用来解决外币转换问题")
-    plus_str: str = Field(default="", description="正向字符串，用来解决外币转换问题")
-    meta_data: dict[str, str] = Field(default_factory=dict, description="元数据")
+    minus_str: str = Field(
+        default="", description="负向字符串，用来解决外币转换问题"
+    )
+    plus_str: str = Field(
+        default="", description="正向字符串，用来解决外币转换问题"
+    )
+    meta_data: dict[str, str] = Field(
+        default_factory=dict, description="元数据"
+    )
     tags: list[str] = Field(default_factory=list, description="标签")
 
 
 @dataclass
 class IR:
-    orders: list[Order] = Field(default_factory=list, description="放置同用类型的订单")
+    orders: list[Order] = Field(
+        default_factory=list, description="放置同用类型的订单"
+    )

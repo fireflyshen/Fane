@@ -36,7 +36,9 @@ HEADER_RE = re.compile(
     r'"(?P<payee>(?:[^"\\]|\\.)*)"\s+"(?P<narration>(?:[^"\\]|\\.)*)"'
 )
 DIRECTIVE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\s+")
-META_RE = re.compile(r'^\s+(?P<key>[A-Za-z_][A-Za-z0-9_-]*):\s+"(?P<value>.*)"\s*$')
+META_RE = re.compile(
+    r'^\s+(?P<key>[A-Za-z_][A-Za-z0-9_-]*):\s+"(?P<value>.*)"\s*$'
+)
 OPEN_RE = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})\s+open\s+(?P<account>[A-Z][A-Za-z0-9:-]*)"
     r"(?P<tail>.*?)(?:\s+;\s*(?P<comment>.*))?$"
@@ -98,9 +100,9 @@ class Transaction:
     @property
     def provider(self) -> str | None:
         value = self.metadata.get("source", "")
-        return PROVIDER_ALIASES.get(value.strip().lower()) or PROVIDER_ALIASES.get(
-            value.strip()
-        )
+        return PROVIDER_ALIASES.get(
+            value.strip().lower()
+        ) or PROVIDER_ALIASES.get(value.strip())
 
     def fields_for_rules(self) -> dict[str, str]:
         values = {
@@ -141,7 +143,9 @@ def scan_transactions(root: Path) -> list[Transaction]:
     transactions: list[Transaction] = []
     for path in _iter_bean_files(root):
         lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
-        indexes = [index for index, line in enumerate(lines) if HEADER_RE.match(line)]
+        indexes = [
+            index for index, line in enumerate(lines) if HEADER_RE.match(line)
+        ]
         for position, start in enumerate(indexes):
             next_headers = [
                 index
@@ -202,7 +206,9 @@ def scan_transactions(root: Path) -> list[Transaction]:
                         date=header.group("date"),
                         flag=header.group("flag"),
                         payee=_unescape_bean_string(header.group("payee")),
-                        narration=_unescape_bean_string(header.group("narration")),
+                        narration=_unescape_bean_string(
+                            header.group("narration")
+                        ),
                         metadata=metadata,
                         postings=tuple(postings),
                         lines=tuple(block),
@@ -211,10 +217,19 @@ def scan_transactions(root: Path) -> list[Transaction]:
     return transactions
 
 
+def _account_file(root: Path, filename: str) -> Path:
+    path = root / "accounts" / filename
+    legacy = root / "accounts" / "data" / filename
+    return legacy if not path.exists() and legacy.exists() else path
+
+
 def account_catalog(root: Path) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
-    data_dir = root / "accounts" / "data"
-    for path in sorted(data_dir.glob("*.bean")):
+    account_dir = root / "accounts"
+    names = {p.name for p in account_dir.glob("*.bean")}
+    names.update(p.name for p in (account_dir / "data").glob("*.bean"))
+    for filename in sorted(names):
+        path = _account_file(root, filename)
         for line in path.read_text(encoding="utf-8").splitlines():
             match = OPEN_RE.match(line)
             if not match:
@@ -232,7 +247,9 @@ def extraction_payload(root: Path) -> dict[str, Any]:
     transactions = scan_transactions(root)
     return {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        ),
         "policy": {
             "minimum_confidence": 0.92,
             "preserve_transaction_facts": True,
@@ -263,7 +280,9 @@ def extraction_payload(root: Path) -> dict[str, Any]:
                         "raw": posting.raw.strip(),
                         "suggested_rule_account_field": (
                             "method-account"
-                            if posting.placeholder_account.lower().startswith("assets:")
+                            if posting.placeholder_account.lower().startswith(
+                                "assets:"
+                            )
                             else "target-account"
                         ),
                     }
@@ -275,12 +294,16 @@ def extraction_payload(root: Path) -> dict[str, Any]:
     }
 
 
-def _load_decisions(path: str | None, encoded: str | None = None) -> dict[str, Any]:
+def _load_decisions(
+    path: str | None, encoded: str | None = None
+) -> dict[str, Any]:
     if encoded is not None:
         try:
             text = base64.b64decode(encoded, validate=True).decode("utf-8")
         except (binascii.Error, UnicodeDecodeError) as error:
-            raise FixmeError(f"AI 输出不是有效的 UTF-8 Base64: {error}") from error
+            raise FixmeError(
+                f"AI 输出不是有效的 UTF-8 Base64: {error}"
+            ) from error
     elif path == "-":
         text = sys.stdin.read()
     elif path is not None:
@@ -299,9 +322,9 @@ def _load_decisions(path: str | None, encoded: str | None = None) -> dict[str, A
 def _normalize_provider(value: Any) -> str:
     if not isinstance(value, str):
         raise FixmeError("rule.provider 必须是字符串")
-    provider = PROVIDER_ALIASES.get(value.strip().lower()) or PROVIDER_ALIASES.get(
-        value.strip()
-    )
+    provider = PROVIDER_ALIASES.get(
+        value.strip().lower()
+    ) or PROVIDER_ALIASES.get(value.strip())
     if provider is None:
         raise FixmeError(f"不支持的 provider: {value!r}")
     return provider
@@ -329,7 +352,9 @@ def _validate_rule(
     account_field = raw_rule.get("account_field")
     expected_field = (
         "method-account"
-        if decision["_posting"].placeholder_account.lower().startswith("assets:")
+        if decision["_posting"]
+        .placeholder_account.lower()
+        .startswith("assets:")
         else "target-account"
     )
     if account_field != expected_field:
@@ -356,7 +381,9 @@ def _validate_rule(
             )
         match[key] = value
     if not ({"peer", "item"} & match.keys()):
-        raise FixmeError("规则至少需要 peer 或 item，禁止只按金额/类型做宽泛分类")
+        raise FixmeError(
+            "规则至少需要 peer 或 item，禁止只按金额/类型做宽泛分类"
+        )
     if len(match) < 2:
         raise FixmeError("自动规则至少需要两个精确匹配字段，避免污染未来交易")
     return {
@@ -391,7 +418,9 @@ def _validate_new_account(
         or len(comment.strip()) > 80
         or any(char in comment for char in "\r\n;")
     ):
-        raise FixmeError("new_account.comment_zh 必须是 1-80 字且不能包含换行或分号")
+        raise FixmeError(
+            "new_account.comment_zh 必须是 1-80 字且不能包含换行或分号"
+        )
     result = {"comment_zh": comment.strip()}
     if prefix == "Expenses":
         label = raw.get("flux_label")
@@ -436,7 +465,9 @@ def validate_decisions(
             raise FixmeError(f"decisions[{index}] 必须是 object")
         posting_id = raw.get("posting_id")
         if not isinstance(posting_id, str) or posting_id not in posting_map:
-            raise FixmeError(f"decisions[{index}] 引用了不存在或已变化的 posting_id")
+            raise FixmeError(
+                f"decisions[{index}] 引用了不存在或已变化的 posting_id"
+            )
         if posting_id in seen:
             raise FixmeError(f"posting_id 重复决策: {posting_id}")
         seen.add(posting_id)
@@ -450,9 +481,14 @@ def validate_decisions(
         if action != "apply":
             raise FixmeError(f"action 只能是 apply 或 defer，收到 {action!r}")
         confidence = raw.get("confidence")
-        if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
+        if not isinstance(confidence, (int, float)) or isinstance(
+            confidence, bool
+        ):
             raise FixmeError("confidence 必须是 0-1 数字")
-        if not 0 <= float(confidence) <= 1 or float(confidence) < min_confidence:
+        if (
+            not 0 <= float(confidence) <= 1
+            or float(confidence) < min_confidence
+        ):
             raise FixmeError(
                 f"置信度 {confidence!r} 低于自动应用阈值 {min_confidence:.2f}"
             )
@@ -498,7 +534,9 @@ def _render_rule(rule: dict[str, Any]) -> str:
         prefix = "    - " if first else "      "
         lines.append(f"{prefix}{key}: {_yaml_quote(value)}")
         first = False
-    lines.append(f"      {rule['account_field']}: {rule['replacement_account']}")
+    lines.append(
+        f"      {rule['account_field']}: {rule['replacement_account']}"
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -507,13 +545,19 @@ def _append_rule(config_text: str, rule: dict[str, Any]) -> str:
     section = re.search(rf"(?m)^{re.escape(provider)}:\s*$", config_text)
     if section is None:
         raise FixmeError(f"bill.yaml 缺少 {provider}: 段")
-    next_top = re.search(r"(?m)^[A-Za-z][A-Za-z0-9_-]*:", config_text[section.end() :])
+    next_top = re.search(
+        r"(?m)^[A-Za-z][A-Za-z0-9_-]*:", config_text[section.end() :]
+    )
     insert_at = (
-        section.end() + next_top.start() if next_top is not None else len(config_text)
+        section.end() + next_top.start()
+        if next_top is not None
+        else len(config_text)
     )
     rendered = _render_rule(rule)
     section_text = config_text[section.start() : insert_at]
-    account_line = f"      {rule['account_field']}: {rule['replacement_account']}"
+    account_line = (
+        f"      {rule['account_field']}: {rule['replacement_account']}"
+    )
     match_lines = [
         f"{key}: {_yaml_quote(value)}" for key, value in rule["match"].items()
     ]
@@ -542,7 +586,9 @@ def _append_rule(config_text: str, rule: dict[str, Any]) -> str:
     return updated
 
 
-def _append_account(text: str, date: str, account: str, details: dict[str, str]) -> str:
+def _append_account(
+    text: str, date: str, account: str, details: dict[str, str]
+) -> str:
     prefix = account.split(":", 1)[0]
     directive = f"{date} open {account}"
     if prefix != "Expenses":
@@ -629,7 +675,7 @@ def _apply_changes(
 
     for account, (date, details) in new_accounts.items():
         prefix = account.split(":", 1)[0]
-        path = root / "accounts" / "data" / ACCOUNT_FILES[prefix]
+        path = _account_file(root, ACCOUNT_FILES[prefix])
         original = files.get(path, path.read_text(encoding="utf-8"))
         if re.search(
             rf"(?m)^\d{{4}}-\d{{2}}-\d{{2}}\s+open\s+{re.escape(account)}(?:\s|$)",
@@ -638,7 +684,9 @@ def _apply_changes(
             continue
         files[path] = _append_account(original, date, account, details)
 
-    config_text = files.get(config_path, config_path.read_text(encoding="utf-8"))
+    config_text = files.get(
+        config_path, config_path.read_text(encoding="utf-8")
+    )
     for rule in rules:
         config_text = _append_rule(config_text, rule)
     files[config_path] = config_text
@@ -659,7 +707,9 @@ def _apply_changes(
     if dry_run:
         return result
 
-    snapshots = {path: path.read_bytes() if path.exists() else None for path in files}
+    snapshots = {
+        path: path.read_bytes() if path.exists() else None for path in files
+    }
     try:
         for path, content in files.items():
             _atomic_write(path, content)
@@ -708,7 +758,11 @@ def apply_decisions(
     if check_config:
         checks.insert(0, shlex.join([*command, "config", "check"]))
     result = _apply_changes(
-        root, decisions, config_path=config_path, dry_run=not write, validators=checks
+        root,
+        decisions,
+        config_path=config_path,
+        dry_run=not write,
+        validators=checks,
     )
     if allow_deferred:
         result["deferred_postings"] = [

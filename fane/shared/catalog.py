@@ -30,13 +30,17 @@ def templates(
 
 @template_app.command("show")
 def show(
-    name: Annotated[str, typer.Option("--name", help="内置模板名称")] = "normal.j2",
+    name: Annotated[
+        str, typer.Option("--name", help="内置模板名称")
+    ] = "normal.j2",
     file: Annotated[
         Path | None, typer.Option("--file", help="改为读取外部模板文件")
     ] = None,
     output: Annotated[
         str,
-        typer.Option("--output", "-o", help="输出文件；默认 stdout，可用于导出模板"),
+        typer.Option(
+            "--output", "-o", help="输出文件；默认 stdout，可用于导出模板"
+        ),
     ] = "-",
 ):
     """显示模板原文，或用 --output 导出后修改。"""
@@ -46,11 +50,15 @@ def show(
 
 @template_app.command("check")
 def check(
-    name: Annotated[str, typer.Option("--name", help="内置模板名称")] = "normal.j2",
+    name: Annotated[
+        str, typer.Option("--name", help="内置模板名称")
+    ] = "normal.j2",
     file: Annotated[
         Path | None, typer.Option("--file", help="检查外部模板文件")
     ] = None,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 检查报告")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 检查报告")
+    ] = False,
 ):
     """检查模板存在且 Jinja2 语法可编译；不修改文件。"""
     with command_errors("模板检查失败"):
@@ -63,11 +71,14 @@ def check(
 
 @template_app.command("fields")
 def template_fields(
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 模板变量列表")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 模板变量列表")
+    ] = False,
 ):
     """列出可以在模板中使用的变量和类型。"""
     rows = [
-        {"name": field.name, "type": str(field.type)} for field in fields(NormalOrder)
+        {"name": field.name, "type": str(field.type)}
+        for field in fields(NormalOrder)
     ]
     output_json(rows) if as_json else output_text(
         "\n".join(f"{row['name']}: {row['type']}" for row in rows)

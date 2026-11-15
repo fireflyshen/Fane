@@ -1,6 +1,8 @@
 # Fane 使用手册
 
-这篇文档按一次实际记账流程解释 Fane。逐项参数见 [完整命令参考](cli.md)，文件字段见 [配置参考](config.md)，源码目录见 [项目目录与架构](modules.md)。
+这篇文档按一次实际记账流程解释 Fane。逐项参数见
+[完整命令参考](cli.md)，文件字段见 [配置参考](config.md)，源码目录见
+[项目目录与架构](modules.md)。
 
 ## 1. 命令设计：功能 → 命令组 → 动作
 
@@ -36,7 +38,9 @@ fa [全局参数] <命令组> <动作> [动作参数]
 | 查看账本网页     | `fa ledger serve`           | 启动 Fava 服务，前台运行                       |
 | 发布 R2 快照     | `fa ledger publish`         | 执行远程发布，成功后替换当前快照对象           |
 
-来源和输入文件没有隐含默认值：新 `bill convert/inspect/import` 都要求 `--provider` 和 `--source`。多文件工作流通过 YAML 的 `jobs` 表达，不再拼很多命令行参数。
+来源和输入文件没有隐含默认值：新 `bill convert/inspect/import` 都要求
+`--provider` 和 `--source`。多文件工作流通过 YAML 的 `jobs`
+表达，不再拼很多命令行参数。
 
 ## 2. 安装、配置位置与帮助
 
@@ -71,9 +75,11 @@ fa --config config/bill.local.yaml config check --json
 export FANE_CONFIG="$PWD/config/bill.local.yaml"
 ```
 
-优先级：`--config` > `FANE_CONFIG` > `~/.flow/config.yaml`。配置没有自动搜索仓库 `config/bill.yaml`。这份已有文件包含个人规则，应按自己的账户修改，不能假定直接可用。
+优先级：`--config` > `FANE_CONFIG` > `~/.flow/config.yaml`。配置没有自动搜索仓库
+`config/bill.yaml`。这份已有文件包含个人规则，应按自己的账户修改，不能假定直接可用。
 
-账本入口优先级：动作 `--ledger` > `FANE_LEDGER` > 兼容 `BILLS_LEDGER` > YAML `ledger.file`。例如：
+账本入口优先级：动作 `--ledger` > `FANE_LEDGER` > 兼容 `BILLS_LEDGER` > YAML
+`ledger.file`。例如：
 
 ```sh
 export FANE_LEDGER="/path/to/Bills/main.bean"
@@ -101,10 +107,13 @@ fa bill convert --provider wechat --source /path/to/wechat.xlsx --format jsonl
 ```
 
 - `beancount`：默认，输出完整分录文本。
-- `json`：数组；每项包含 `source_provider`、`source_file`、`order_id`、`date`、`month`、`kind`、`fingerprint`、`content`。
+- `json`：数组；每项包含
+  `source_provider`、`source_file`、`order_id`、`date`、`month`、`kind`、`fingerprint`、`content`。
 - `jsonl`：每行一项，同上，便于流式处理。
 
-JSON/JSONL 也包含渲染后的 `content`，因此依然需要可用模板。未匹配账户通常进入 `Assets:FIXME` / `Expenses:FIXME`，不是自动推断分类。`inspect` 的 unmatched 指使用默认账户的交易数量，expense/income 是上述文件分组数量；完整分类规则见配置参考。
+JSON/JSONL 也包含渲染后的 `content`，因此依然需要可用模板。未匹配账户通常进入
+`Assets:FIXME` / `Expenses:FIXME`，不是自动推断分类。`inspect`
+的 unmatched 指使用默认账户的交易数量，expense/income 是上述文件分组数量；完整分类规则见配置参考。
 
 ### 3.3 单文件导入
 
@@ -116,9 +125,14 @@ fa bill import --provider wechat --source /path/to/wechat.xlsx --journal-dir /pa
 fa bill import --provider wechat --source /path/to/wechat.xlsx --journal-dir /path/to/Bills/journal --require-classified --write
 ```
 
-`kind=expense` 的分录写入 `journal/YYYY/YYYY-MM.bean`，`kind=income` 写入 `journal/YYYY/income.bean`，年份来自交易日期。当前历史分组仅把商品说明含“收益发放”的订单归入 income，其余归入 expense；它不等于完整财务收支判定。正式导入返回 `{"written": 1, "skipped": 0}`。重复导入依据来源订单号等生成的指纹跳过；再次预览已导入交易时，空计划没有 stdout 输出。`--force` 绕过去重，可能产生重复交易。
+`kind=expense` 的分录写入 `journal/YYYY/YYYY-MM.bean`，`kind=income` 写入
+`journal/YYYY/income.bean`，年份来自交易日期。当前历史分组仅把商品说明含“收益发放”的订单归入 income，其余归入 expense；它不等于完整财务收支判定。正式导入返回
+`{"written": 1, "skipped": 0}`。重复导入依据来源订单号等生成的指纹跳过；再次预览已导入交易时，空计划没有 stdout 输出。`--force`
+绕过去重，可能产生重复交易。
 
-单文件导入不会自动更新 Beancount include，也不运行账本后置校验。应在账本年度 `index.bean` 中引用生成文件，再由主账本引用年度索引。需要多文件锁定、后置校验与回滚时用同步任务。
+单文件导入不会自动更新 Beancount include，也不运行账本后置校验。应在账本年度
+`index.bean`
+中引用生成文件，再由主账本引用年度索引。需要多文件锁定、后置校验与回滚时用同步任务。
 
 默认去重索引在账本外部的状态目录，见第 9 节。保留索引才能保持跨次导入的幂等性。
 
@@ -150,9 +164,12 @@ fa bill sync daily --date 2026-10-04 --json --write
 fa bill sync daily --rescan --json --write
 ```
 
-同步按文件 SHA-256 跳过未变文件，再按交易指纹去重；`--rescan` 跳过文件缓存，仍保留交易去重。报告中 `planned` 是拟写入数，`written` 是实际写入数；预览的 written 为 0。正式写入会持有任务锁，validator 失败时恢复本次交易文件、索引和状态。
+同步按文件 SHA-256 跳过未变文件，再按交易指纹去重；`--rescan`
+跳过文件缓存，仍保留交易去重。报告中 `planned` 是拟写入数，`written`
+是实际写入数；预览的 written 为 0。正式写入会持有任务锁，validator 失败时恢复本次交易文件、索引和状态。
 
-`--date` 用于任务文件路径占位符 `{date}`、`{year}`、`{month}`、`{day}`，不是账单交易日期过滤。任务路径和路由写法详见配置参考。同步同样不创建账本 include；确保目标月份与 income 文件可被主账本加载。
+`--date` 用于任务文件路径占位符
+`{date}`、`{year}`、`{month}`、`{day}`，不是账单交易日期过滤。任务路径和路由写法详见配置参考。同步同样不创建账本 include；确保目标月份与 income 文件可被主账本加载。
 
 ## 4. tools 是什么，外部工具怎么调用
 
@@ -170,14 +187,21 @@ fa subscriptions generate --ledger /path/to/Bills/main.bean --month 2026-10 --js
 fa subscriptions generate --ledger /path/to/Bills/main.bean --month 2026-10 --json --write
 ```
 
-外部工具可以启动这些进程、传参数、读写 JSON；Shell、任务调度器和 AI 助手都可这样接入。Fane 没有 HTTP API 或 MCP 服务。分类功能没有 API key、模型选择或联网参数，因为它不负责请求模型。
+外部工具可以启动这些进程、传参数、读写 JSON；Shell、任务调度器和 AI 助手都可这样接入。Fane 没有 HTTP
+API 或 MCP 服务。分类功能没有 API
+key、模型选择或联网参数，因为它不负责请求模型。
 
 ### 4.1 分类输入输出流程
 
-1. `extract` 扫描账本根目录 `journal/**/*.bean`，找出 FIXME/FixMe/Fix 占位分录，并读取 `accounts/data/*.bean` 的账户目录。
-2. 人工或外部 AI 阅读导出 JSON 和 `schema`，生成 decisions JSON。必须保留导出的 posting_id；不要自己编造 ID。
-3. `apply` 默认只检查和展示修改计划。加 `--write` 后替换账户、必要时新增费用/收入账户，并向 Fane YAML 追加来源分类规则。
-4. 正式写入默认执行 `config check` 与 `ledger validate`，失败恢复本次修改的文件。
+1. `extract` 扫描账本根目录
+   `journal/**/*.bean`，找出 FIXME/FixMe/Fix 占位分录，并读取 `accounts/*.bean`
+   的账户目录。
+2. 人工或外部 AI 阅读导出 JSON 和 `schema`，生成 decisions
+   JSON。必须保留导出的 posting_id；不要自己编造 ID。
+3. `apply` 默认只检查和展示修改计划。加 `--write`
+   后替换账户、必要时新增费用/收入账户，并向 Fane YAML 追加来源分类规则。
+4. 正式写入默认执行 `config check` 与
+   `ledger validate`，失败恢复本次修改的文件。
 
 外部 AI 可以使用下面的任务说明：
 
@@ -220,15 +244,25 @@ cat /tmp/decisions.json | fa classify apply --ledger /path/to/Bills/main.bean
 fa classify apply --ledger /path/to/Bills/main.bean --input-base64 '<UTF-8 JSON 的 Base64>'
 ```
 
-默认阈值 0.92；缺失/暂缓决策会拒绝整批应用，`--allow-partial` 才允许保留。交易变化后 posting_id 变化，旧结果会被拒绝。新增账户只允许 Expenses/Income；费用账户额外需要 `new_account.comment_zh`、`new_account.flux_label`，收入需要 comment_zh。文件结构及字段限制见配置参考和 `fa classify schema`。
+默认阈值 0.92；缺失/暂缓决策会拒绝整批应用，`--allow-partial`
+才允许保留。交易变化后 posting_id 变化，旧结果会被拒绝。新增账户只允许 Expenses/Income；费用账户额外需要
+`new_account.comment_zh`、`new_account.flux_label`，收入需要 comment_zh。文件结构及字段限制见配置参考和
+`fa classify schema`。
 
-注意：追加规则要求 YAML 有单独成行的 `alipay:` / `wechat:` 段与缩进列表；初始化生成的 `rules: []` 会自动展开。`wechat: {rules: [...]}` 等行内结构需先展开。
+注意：追加规则要求 YAML 有单独成行的 `alipay:` / `wechat:`
+段与缩进列表；初始化生成的 `rules: []` 会自动展开。`wechat: {rules: [...]}`
+等行内结构需先展开。
 
-`--validator '命令 参数'` 可重复，替代默认账本校验；默认配置诊断仍保留，`--skip-config-check` 才跳过它。校验命令通过参数数组执行，不支持 Shell 管道/重定向。预览不运行后置校验。`ledger validate` 对未使用的 open 账户也会报错；应清理不用的账户，或在明确只需要 Beancount 检查时指定 `--validator 'bean-check /path/to/Bills/main.bean'`。
+`--validator '命令 参数'`
+可重复，替代默认账本校验；默认配置诊断仍保留，`--skip-config-check`
+才跳过它。校验命令通过参数数组执行，不支持 Shell 管道/重定向。预览不运行后置校验。`ledger validate`
+对未使用的 open 账户也会报错；应清理不用的账户，或在明确只需要 Beancount 检查时指定
+`--validator 'bean-check /path/to/Bills/main.bean'`。
 
 ## 5. 订阅生成：固定计划，不是付款工具
 
-订阅功能每月生成账本分录，不会支付费用，也不是后台定时服务。默认计划文件是当前 Fane YAML 同目录的 `subscriptions.json`，可用 `--subscriptions` 指定任意 JSON。
+订阅功能每月生成账本分录，不会支付费用，也不是后台定时服务。默认计划文件是当前 Fane
+YAML 同目录的 `subscriptions.json`，可用 `--subscriptions` 指定任意 JSON。
 
 ```sh
 fa subscriptions init
@@ -239,9 +273,12 @@ fa subscriptions generate --month 2026-10 --json --write
 fa subscriptions generate --until 2026-10-04 --json
 ```
 
-`--month` 只处理指定月份；`--until` 从每项 start_date 生成到指定日期（包含边界）；不指定二者则生成到本机今天。二者互斥。账单日超出当月天数会调整为月底，例如 31 日在 2 月变为 28/29 日。paused/cancelled 不生成。
+`--month` 只处理指定月份；`--until`
+从每项 start_date 生成到指定日期（包含边界）；不指定二者则生成到本机今天。二者互斥。账单日超出当月天数会调整为月底，例如 31 日在 2 月变为 28/29 日。paused/cancelled 不生成。
 
-重复运行按 `(subscription_id, period)` 跳过已生成分录，也识别同月同商户、说明、借方账户、金额和币种的旧分录。正式生成写入月度 journal，并更新年度及 journal 索引。主账本必须 include `journal/index.bean`；生成后加载检查失败或分录未被主账本引用，会恢复文件。
+重复运行按 `(subscription_id, period)`
+跳过已生成分录，也识别同月同商户、说明、借方账户、金额和币种的旧分录。正式生成写入月度 journal，并更新年度及 journal 索引。主账本必须 include
+`journal/index.bean`；生成后加载检查失败或分录未被主账本引用，会恢复文件。
 
 旧个人计划不会自动迁移，可显式指定：
 
@@ -249,13 +286,17 @@ fa subscriptions generate --until 2026-10-04 --json
 fa subscriptions generate --subscriptions tools/auto_subscriptions.json --month 2026-10 --json
 ```
 
-历史 `generated_by: "tools/generate_subscriptions.py"` 标记保留用于识别既有数据，并不意味着新入口依赖该脚本。当前分类应用、单文件导入与订阅生成没有跨进程写入锁，避免同时运行多个写入操作；同步任务有任务锁。
+历史 `generated_by: "tools/generate_subscriptions.py"`
+标记保留用于识别既有数据，并不意味着新入口依赖该脚本。当前分类应用、单文件导入与订阅生成没有跨进程写入锁，避免同时运行多个写入操作；同步任务有任务锁。
 
 ## 6. j2 在哪里，缺失时怎么办
 
-`.j2` 是 Jinja2 模板文件的常用后缀。模板描述 Beancount 文本格式，Python 提供交易变量并渲染它。它不负责读取账单、分类或导入。
+`.j2`
+是 Jinja2 模板文件的常用后缀。模板描述 Beancount 文本格式，Python 提供交易变量并渲染它。它不负责读取账单、分类或导入。
 
-账单和订阅共用一个内置模板：`fane/shared/render/normal.j2`，并共用渲染入口。之前的 `package/template/normal.j2` 已移到这里。打包配置会将 `.j2` 放进 wheel；运行时通过包资源加载，因此从其他工作目录执行 `fa` 也能找到。
+账单和订阅共用一个内置模板：`fane/shared/render/normal.j2`，并共用渲染入口。之前的
+`package/template/normal.j2` 已移到这里。打包配置会将 `.j2`
+放进 wheel；运行时通过包资源加载，因此从其他工作目录执行 `fa` 也能找到。
 
 ```sh
 fa template list
@@ -267,11 +308,23 @@ fa bill convert --provider wechat --source /path/to/wechat.xlsx --template /tmp/
 fa subscriptions generate --month 2026-10 --template /tmp/my-normal.j2 --json
 ```
 
-长期开启可在 YAML 写 `template-file: templates/my-normal.j2`，账单和订阅同时读取这个配置，相对路径以 YAML 所在目录解析。本次 `--template` 优先于 YAML，YAML 优先于内置模板。账单 convert/inspect/import/sync 和 subscriptions generate 都支持覆盖模板。
+长期开启可在 YAML 写
+`template-file: templates/my-normal.j2`，账单和订阅同时读取这个配置，相对路径以 YAML 所在目录解析。本次
+`--template`
+优先于 YAML，YAML 优先于内置模板。账单 convert/inspect/import/sync 和 subscriptions
+generate 都支持覆盖模板。
 
-常见变量：`pay_time` 日期时间、`peer` 商户、`item` 商品说明、`money` 金额、`currency` 币种、`plus_account`/`minus_account` 账户、`metadata` 字典、`tags` 列表；全量变量用 `template fields` 查看。内置模板还处理佣金及自定义记账字符串。`amount_precision` 默认 2，订阅为 null，保留配置的全部金额精度。`bean_quote` 过滤器按 Beancount 字符串规则转义引号、反斜杠和换行，`amount` 过滤器按指定精度输出数字。
+常见变量：`pay_time` 日期时间、`peer` 商户、`item` 商品说明、`money`
+金额、`currency` 币种、`plus_account`/`minus_account` 账户、`metadata`
+字典、`tags` 列表；全量变量用 `template fields`
+查看。内置模板还处理佣金及自定义记账字符串。`amount_precision`
+默认 2，订阅为 null，保留配置的全部金额精度。`bean_quote`
+过滤器按 Beancount 字符串规则转义引号、反斜杠和换行，`amount`
+过滤器按指定精度输出数字。
 
-订阅通过同一组变量传入商户、说明和账户，去重信息放在 `metadata` 中。自定义模板必须保留 `subscription_id`、`period` 等元数据；如果正式写入后无法识别订阅身份，Fane 会回滚这次写入。
+订阅通过同一组变量传入商户、说明和账户，去重信息放在 `metadata`
+中。自定义模板必须保留 `subscription_id`、`period`
+等元数据；如果正式写入后无法识别订阅身份，Fane 会回滚这次写入。
 
 ```jinja2
 {{ pay_time.strftime('%Y-%m-%d') }} * "{{ peer }}" "{{ item }}"
@@ -279,9 +332,12 @@ fa subscriptions generate --month 2026-10 --template /tmp/my-normal.j2 --json
     {{ minus_account }} -{{ money }} {{ currency }}
 ```
 
-上例仅用于理解变量；完整逻辑请从内置模板导出后修改。`template check` 检查 Jinja2 语法，不能证明实际渲染结果是合法 Beancount；修改后应转换真实示例并加载账本校验。未定义变量会在实际渲染时明确报错，可以用 template fields 核对变量名。
+上例仅用于理解变量；完整逻辑请从内置模板导出后修改。`template check`
+检查 Jinja2 语法，不能证明实际渲染结果是合法 Beancount；修改后应转换真实示例并加载账本校验。未定义变量会在实际渲染时明确报错，可以用 template
+fields 核对变量名。
 
-如果把内置 `.j2` 真正删掉，Fane 不会凭空生成模板。下一次加载会报缺失，需重新安装完整包、恢复模板，或指定可用的外部模板。源码目录中的 editable 安装直接读取源码模板；普通 wheel 安装读取安装位置的模板。
+如果把内置 `.j2`
+真正删掉，Fane 不会凭空生成模板。下一次加载会报缺失，需重新安装完整包、恢复模板，或指定可用的外部模板。源码目录中的 editable 安装直接读取源码模板；普通 wheel 安装读取安装位置的模板。
 
 ## 7. 账本工具
 
@@ -292,7 +348,8 @@ fa ledger validate --ledger /path/to/Bills/main.bean
 fa ledger validate --allow-ambiguous-account Assets:Internal:Transit
 ```
 
-除了 Beancount 本身的错误，还检查主账本目录下未被 include 的 `.bean`、未使用的 open 账户、未 open 或晚于首次使用的账户、Fane 配置引用的未 open 账户、币种声明，以及 YAML 配置的账户段名和元数据策略。未使用账户检查默认就开启，因此“只有 open 的空账本”可能校验失败。
+除了 Beancount 本身的错误，还检查主账本目录下未被 include 的
+`.bean`、未使用的 open 账户、未 open 或晚于首次使用的账户、Fane 配置引用的未 open 账户、币种声明，以及 YAML 配置的账户段名和元数据策略。未使用账户检查默认就开启，因此“只有 open 的空账本”可能校验失败。
 
 ### 7.2 余额断言
 
@@ -301,7 +358,10 @@ fa ledger assertions --date 2026-10-01
 fa ledger assertions --date 2026-10-01 --write --output assertions/2026-10.bean --index assertions/index.bean
 ```
 
-断言为指定日期**日初**的资产/负债余额，不包含当天交易；默认明天。`--output` 和 `--index` 相对主账本目录解析，也可配置到 YAML。写入更新索引，但主账本仍需要引用 assertions 索引。`--include-internal` 允许包含配置 ignored-prefixes 原本排除的账户，`--precision` 覆盖小数位数。
+断言为指定日期**日初**的资产/负债余额，不包含当天交易；默认明天。`--output` 和
+`--index`
+相对主账本目录解析，也可配置到 YAML。写入更新索引，但主账本仍需要引用 assertions 索引。`--include-internal`
+允许包含配置 ignored-prefixes 原本排除的账户，`--precision` 覆盖小数位数。
 
 ### 7.3 快照和网页
 
@@ -312,7 +372,9 @@ fa ledger export --all --include-transactions --version local
 fa ledger serve --host 127.0.0.1 --port 5000
 ```
 
-export 默认所有年份；`--year`、`--meta`、`--all` 互斥。交易明细移除账本文件名/行号，仍包含实际财务内容。Fava 需要 web extra 或 `--executable /path/to/fava`。服务前台运行，按 Ctrl+C 结束。
+export 默认所有年份；`--year`、`--meta`、`--all`
+互斥。交易明细移除账本文件名/行号，仍包含实际财务内容。Fava 需要 web extra 或
+`--executable /path/to/fava`。服务前台运行，按 Ctrl+C 结束。
 
 ### 7.4 云发布
 
@@ -321,7 +383,9 @@ export 默认所有年份；`--year`、`--meta`、`--all` 互斥。交易明细�
 fa ledger publish --version '<源账本提交 SHA>' --endpoint 'https://<account>.r2.cloudflarestorage.com' --bucket '<bucket>'
 ```
 
-需要 cloud extra。可用 `FANE_R2_ENDPOINT`、`FANE_R2_BUCKET`、`FANE_R2_KEY` 代替相应参数；默认快照对象 key 为 current.json。发布把完整快照写入单个对象（默认 current.json），对象替换成功后即成为当前快照；不会单独上传版本目录或指针文件。同一日期、相同账本版本和生成器版本自动跳过，否则先校验再发布；`--force` 强制重新发布。它没有预览开关，执行该命令即表示发布。
+需要 cloud extra。可用 `FANE_R2_ENDPOINT`、`FANE_R2_BUCKET`、`FANE_R2_KEY`
+代替相应参数；默认快照对象 key 为 current.json。发布把完整快照写入单个对象（默认 current.json），对象替换成功后即成为当前快照；不会单独上传版本目录或指针文件。同一日期、相同账本版本和生成器版本自动跳过，否则先校验再发布；`--force`
+强制重新发布。它没有预览开关，执行该命令即表示发布。
 
 ## 8. 外部脚本如何判断成功
 
@@ -338,9 +402,11 @@ summary = json.loads(result.stdout)
 print(summary["total"], summary["unmatched"])
 ```
 
-退出码 0 才解析成功结果；一般业务错误 1，CLI 参数错误 2；`classify apply` 拒绝或写入失败为 2，并将 JSON 错误写入 stderr。完整输出约定在命令参考末尾。
+退出码 0 才解析成功结果；一般业务错误 1，CLI 参数错误 2；`classify apply`
+拒绝或写入失败为 2，并将 JSON 错误写入 stderr。完整输出约定在命令参考末尾。
 
-如果使用调度器，调度的命令应包含绝对配置路径、绝对输入路径或明确的 cwd，并使用已安装 `fa` 的虚拟环境路径。定时执行是外部任务调度器的职责，Fane 自己没有常驻调度器。
+如果使用调度器，调度的命令应包含绝对配置路径、绝对输入路径或明确的 cwd，并使用已安装
+`fa` 的虚拟环境路径。定时执行是外部任务调度器的职责，Fane 自己没有常驻调度器。
 
 ## 9. 路径和状态：避免混淆
 
@@ -355,9 +421,12 @@ print(summary["total"], summary["unmatched"])
 | 默认订阅 JSON                                                                                | YAML 同目录 subscriptions.json         |
 | 分类 root / 订阅 journal                                                                     | 默认主账本所在目录 / 其 journal 子目录 |
 
-导入/同步默认状态根目录：`FANE_STATE_HOME`，否则 `XDG_STATE_HOME/fane`，否则 `~/.local/state/fane`。下面按 journal 绝对路径的哈希区分账本；`FANE_STATE_NAMESPACE` 可指定固定子目录名。包含导入指纹、任务状态和锁。
+导入/同步默认状态根目录：`FANE_STATE_HOME`，否则 `XDG_STATE_HOME/fane`，否则
+`~/.local/state/fane`。下面按 journal 绝对路径的哈希区分账本；`FANE_STATE_NAMESPACE`
+可指定固定子目录名。包含导入指纹、任务状态和锁。
 
-旧账本 `.fane` 状态存在但新目录未迁移时，工具会拒绝导入并告知迁移目标；应迁移文件或显式设置路径，不要直接删除旧指纹后重导。账本搬家后路径哈希变化，也需要迁移原状态或使用固定 namespace。
+旧账本 `.fane`
+状态存在但新目录未迁移时，工具会拒绝导入并告知迁移目标；应迁移文件或显式设置路径，不要直接删除旧指纹后重导。账本搬家后路径哈希变化，也需要迁移原状态或使用固定 namespace。
 
 ## 10. 常见问题与迁移
 

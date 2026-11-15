@@ -69,7 +69,9 @@ def initialize():
     manifest = {
         "asOf": as_of,
         "selected": None,
-        "months": {month: {"status": "pending", "attempts": 0} for month in months},
+        "months": {
+            month: {"status": "pending", "attempts": 0} for month in months
+        },
     }
     write("manifest.json", manifest)
     return manifest
@@ -91,19 +93,28 @@ def operate(operation, month=None, request=None):
     if operation == "status":
         return {
             "asOf": manifest["asOf"],
-            "months": {m: row["status"] for m, row in manifest["months"].items()},
+            "months": {
+                m: row["status"] for m, row in manifest["months"].items()
+            },
         }
     if operation == "select":
         assert month in manifest["months"] and MONTH.fullmatch(month)
         manifest["selected"] = month
         write("manifest.json", manifest)
-        return {"selected": month, "status": manifest["months"][month]["status"]}
+        return {
+            "selected": month,
+            "status": manifest["months"][month]["status"],
+        }
     month, row = selected(manifest)
     snapshot = read("snapshot.json")
     if operation == "prepare":
-        assert row["status"] in ("pending", "ready"), "Month cannot be regenerated"
+        assert row["status"] in ("pending", "ready"), (
+            "Month cannot be regenerated"
+        )
         year, number = map(int, month.split("-"))
-        before = f"{year - (number == 1):04d}-{number - 1 if number > 1 else 12:02d}"
+        before = (
+            f"{year - (number == 1):04d}-{number - 1 if number > 1 else 12:02d}"
+        )
         mode = "partial" if month == manifest["asOf"][:7] else "history"
         previous_snapshot = (
             snapshot["partialComparison"] if mode == "partial" else snapshot
@@ -175,9 +186,7 @@ def operate(operation, month=None, request=None):
         if month < manifest["asOf"][:7]:
             report = read(month + ".json")["report"]
             year, number = map(int, month.split("-"))
-            before = (
-                f"{year - (number == 1):04d}-{number - 1 if number > 1 else 12:02d}"
-            )
+            before = f"{year - (number == 1):04d}-{number - 1 if number > 1 else 12:02d}"
             digest = hashlib.sha256(
                 (
                     snapshot["ledger"][month]
@@ -210,7 +219,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "operation",
-        choices=["status", "select", "prepare", "store", "feedback", "begin", "sent"],
+        choices=[
+            "status",
+            "select",
+            "prepare",
+            "store",
+            "feedback",
+            "begin",
+            "sent",
+        ],
     )
     parser.add_argument("--month")
     parser.add_argument("--request-base64")
@@ -224,7 +241,9 @@ def main():
             else None
         )
         print(
-            json.dumps(operate(args.operation, args.month, request), ensure_ascii=False)
+            json.dumps(
+                operate(args.operation, args.month, request), ensure_ascii=False
+            )
         )
 
 

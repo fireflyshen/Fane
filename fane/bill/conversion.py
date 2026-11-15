@@ -13,7 +13,9 @@ from fane.shared.results import RenderedEntry, fingerprint_order
 def provider_names() -> tuple[str, ...]:
     root = Path(__file__).parent / "providers"
     return tuple(
-        name for name in ("alipay", "wechat") if (root / name / "reader.py").is_file()
+        name
+        for name in ("alipay", "wechat")
+        if (root / name / "reader.py").is_file()
     )
 
 
@@ -101,7 +103,9 @@ class Converter:
                     content=content,
                     source_provider=provider,
                     source_file=source,
-                    order_id=order.order_id or order.meta_data.get("order_id") or None,
+                    order_id=order.order_id
+                    or order.meta_data.get("order_id")
+                    or None,
                 )
             )
             if (

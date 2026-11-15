@@ -18,15 +18,21 @@ from fane.shared.results import RenderedEntry
 from .conversion import Converter, provider_names
 from .sync import SyncReport, SyncService
 
-bill_app = typer.Typer(help="转换、检查、预览或写入第三方账单。", no_args_is_help=True)
+bill_app = typer.Typer(
+    help="转换、检查、预览或写入第三方账单。", no_args_is_help=True
+)
 ProviderOption = Annotated[
-    str, typer.Option("--provider", "-p", help="账单来源；用 fa providers list 查看")
+    str,
+    typer.Option(
+        "--provider", "-p", help="账单来源；用 fa providers list 查看"
+    ),
 ]
 SourceOption = Annotated[
     Path, typer.Option("--source", "-s", help="账单 CSV/XLSX 文件")
 ]
 TemplateOption = Annotated[
-    Path | None, typer.Option("--template", help="本次转换使用的自定义 Jinja2 模板")
+    Path | None,
+    typer.Option("--template", help="本次转换使用的自定义 Jinja2 模板"),
 ]
 
 
@@ -48,14 +54,21 @@ def convert(
         result = Converter(get_cli_context(ctx).config, template).convert(
             provider, str(source)
         )
-        entries = sorted(result.entries, key=lambda entry: (entry.date, entry.content))
-        rows = [{**asdict(entry), "date": entry.date.isoformat()} for entry in entries]
+        entries = sorted(
+            result.entries, key=lambda entry: (entry.date, entry.content)
+        )
+        rows = [
+            {**asdict(entry), "date": entry.date.isoformat()}
+            for entry in entries
+        ]
         if output_format == ConversionFormat.beancount:
             content = "\n".join(entry.content for entry in entries)
         elif output_format == ConversionFormat.json:
             content = json.dumps(rows, ensure_ascii=False, indent=2)
         elif output_format == ConversionFormat.jsonl:
-            content = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
+            content = "\n".join(
+                json.dumps(row, ensure_ascii=False) for row in rows
+            )
         output_text(content, output)
 
 
@@ -64,7 +77,9 @@ def inspect(
     ctx: typer.Context,
     provider: ProviderOption,
     source: SourceOption,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 检查摘要")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 检查摘要")
+    ] = False,
     template: TemplateOption = None,
 ):
     """只读检查条数、月份和待分类交易。"""
@@ -77,12 +92,15 @@ def inspect(
         if as_json:
             typer.echo(json.dumps(summary, ensure_ascii=False))
         else:
-            typer.echo(f"来源: {summary['provider']}\n账单: {summary['source']}")
+            typer.echo(
+                f"来源: {summary['provider']}\n账单: {summary['source']}"
+            )
             _echo_summary(summary)
             typer.echo(
                 "月份: "
                 + ", ".join(
-                    f"{month}={count}" for month, count in summary["months"].items()
+                    f"{month}={count}"
+                    for month, count in summary["months"].items()
                 )
             )
 
@@ -105,7 +123,8 @@ def import_entries(
         bool, typer.Option("--force", help="绕过去重；可能写入重复交易")
     ] = False,
     require_classified: Annotated[
-        bool, typer.Option("--require-classified", help="存在待分类交易时拒绝导入")
+        bool,
+        typer.Option("--require-classified", help="存在待分类交易时拒绝导入"),
     ] = False,
     summary: Annotated[
         bool, typer.Option("--summary", help="向 stderr 打印检查摘要")
@@ -121,12 +140,16 @@ def import_entries(
         if summary:
             _echo_summary(inspection, err=True)
         if require_classified and inspection["unmatched"]:
-            raise ValueError(f"拒绝导入: 仍有 {inspection['unmatched']} 条待分类交易")
+            raise ValueError(
+                f"拒绝导入: 仍有 {inspection['unmatched']} 条待分类交易"
+            )
         writer = JournalWriter(
             journal_dir, dedupe_index=dedupe_index or None, force=force
         )
         if write:
-            typer.echo(json.dumps(writer.write(result.entries), ensure_ascii=False))
+            typer.echo(
+                json.dumps(writer.write(result.entries), ensure_ascii=False)
+            )
         else:
             for entry in writer.plan(result.entries):
                 typer.echo(_entry_to_json(entry))
@@ -142,12 +165,15 @@ def sync(
     run_date: Annotated[
         str, typer.Option("--date", help="YYYY-MM-DD；默认任务时区的今天")
     ] = "",
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 同步报告")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 同步报告")
+    ] = False,
     rescan: Annotated[
         bool, typer.Option("--rescan", help="忽略文件缓存，保留交易去重")
     ] = False,
     require_classified: Annotated[
-        bool, typer.Option("--require-classified", help="存在待分类交易时拒绝写入")
+        bool,
+        typer.Option("--require-classified", help="存在待分类交易时拒绝写入"),
     ] = False,
     template: TemplateOption = None,
 ):
@@ -169,7 +195,9 @@ def sync(
             require_classified=True if require_classified else None,
         )
         if as_json:
-            typer.echo(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
+            typer.echo(
+                json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True)
+            )
         else:
             _print_report(report)
 
@@ -177,7 +205,9 @@ def sync(
 @bill_app.command("jobs")
 def jobs(
     ctx: typer.Context,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 任务名称列表")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 任务名称列表")
+    ] = False,
 ):
     """列出可传给 bill sync 的任务。"""
     with command_errors("读取任务失败"):
@@ -195,12 +225,18 @@ def ingest(
     input_file: Annotated[
         str, typer.Option("--input", "-i", help="JSONL 文件；- 读取 stdin")
     ] = "-",
-    write: Annotated[bool, typer.Option("--write", help="正式写入；默认预览")] = False,
+    write: Annotated[
+        bool, typer.Option("--write", help="正式写入；默认预览")
+    ] = False,
     dedupe_index: Annotated[str, typer.Option("--dedupe-index")] = "",
 ):
     """读取 convert --format jsonl 的结果，保持指纹去重和分录文本。"""
     with command_errors("导入失败"):
-        text = sys.stdin.read() if input_file == "-" else Path(input_file).read_text()
+        text = (
+            sys.stdin.read()
+            if input_file == "-"
+            else Path(input_file).read_text()
+        )
         entries = []
         for line in text.splitlines():
             if not line.strip():
@@ -217,12 +253,16 @@ def ingest(
                 "source_provider",
                 "source_file",
             }
-            if not required <= row.keys() or row.keys() - required - {"order_id"}:
+            if not required <= row.keys() or row.keys() - required - {
+                "order_id"
+            }:
                 raise ValueError("JSONL 分录字段与 convert 输出不符")
             if any(not isinstance(row[key], str) for key in required):
                 raise ValueError("JSONL 分录字段必须是字符串")
             row["date"] = date.fromisoformat(row["date"])
-            if row["month"] != row["date"].strftime("%m") or row["kind"] not in {
+            if row["month"] != row["date"].strftime("%m") or row[
+                "kind"
+            ] not in {
                 "expense",
                 "income",
             }:
@@ -245,7 +285,9 @@ providers_app = typer.Typer(help="支持的账单来源。", no_args_is_help=Tru
 @providers_app.command("list")
 def providers(as_json: Annotated[bool, typer.Option("--json")] = False):
     names = list(provider_names())
-    typer.echo(json.dumps(names, ensure_ascii=False) if as_json else "\n".join(names))
+    typer.echo(
+        json.dumps(names, ensure_ascii=False) if as_json else "\n".join(names)
+    )
 
 
 def _entry_to_json(entry) -> str:

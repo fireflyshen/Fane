@@ -36,7 +36,9 @@ def add_expense(totals: dict[str, Decimal], number: Decimal) -> None:
 
 
 def render_totals(values: dict[str, Decimal]) -> dict[str, str]:
-    return {key: decimal_text(values[key]) for key in ("gross", "refunds", "net")}
+    return {
+        key: decimal_text(values[key]) for key in ("gross", "refunds", "net")
+    }
 
 
 def expense_category_labels(entries: Iterable[Any]) -> dict[str, str]:
@@ -57,7 +59,9 @@ def category_name(account: str, labels: dict[str, str] | None = None) -> str:
 
 
 def first_transaction_year(entries: Iterable[Any]) -> int:
-    years = [entry.date.year for entry in entries if isinstance(entry, Transaction)]
+    years = [
+        entry.date.year for entry in entries if isinstance(entry, Transaction)
+    ]
     return min(years, default=date.today().year)
 
 
@@ -80,7 +84,9 @@ def transaction_recognition(entry: Transaction, accrual_prefixes=()) -> str:
         return str(explicit)
 
     accounts = {posting.account for posting in entry.postings}
-    recognizes_expense = any(account.startswith("Expenses:") for account in accounts)
+    recognizes_expense = any(
+        account.startswith("Expenses:") for account in accounts
+    )
     has_accrual_offset = any(
         account.startswith(tuple(accrual_prefixes)) for account in accounts
     )
@@ -104,10 +110,15 @@ def build_year(
         ):
             continue
 
-        transaction_totals: dict[str, dict[str, Decimal]] = defaultdict(empty_totals)
+        transaction_totals: dict[str, dict[str, Decimal]] = defaultdict(
+            empty_totals
+        )
         transaction_categories: list[dict[str, Any]] = []
         for posting in entry.postings:
-            if not posting.account.startswith("Expenses:") or posting.units is None:
+            if (
+                not posting.account.startswith("Expenses:")
+                or posting.units is None
+            ):
                 continue
             number = posting.units.number
             currency = posting.units.currency
@@ -198,7 +209,11 @@ def build_year(
                 }
             )
         categories.sort(
-            key=lambda item: (item["currency"], -Decimal(item["net"]), item["account"])
+            key=lambda item: (
+                item["currency"],
+                -Decimal(item["net"]),
+                item["account"],
+            )
         )
         rendered_days.append(
             {
@@ -260,12 +275,15 @@ def build_snapshot(
 
 def write_json(payload: dict[str, Any], output: Path | None) -> None:
     if output is None:
-        json.dump(payload, sys.stdout, ensure_ascii=False, separators=(",", ":"))
+        json.dump(
+            payload, sys.stdout, ensure_ascii=False, separators=(",", ":")
+        )
         return
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
     temporary.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
     )
     temporary.replace(output)
 

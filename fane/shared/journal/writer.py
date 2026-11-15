@@ -38,7 +38,9 @@ class JournalWriter:
         """Return entries that a write would append, without updating any state."""
         seen = set(self._seen)
         planned = []
-        for entry in sorted(entries, key=lambda item: (item.date, item.content)):
+        for entry in sorted(
+            entries, key=lambda item: (item.date, item.content)
+        ):
             if not self.force and entry.fingerprint in seen:
                 continue
             planned.append(entry)
@@ -48,7 +50,9 @@ class JournalWriter:
     def write(self, entries: list[RenderedEntry]) -> dict[str, int]:
         written = 0
         skipped = 0
-        for entry in sorted(entries, key=lambda item: (item.date, item.content)):
+        for entry in sorted(
+            entries, key=lambda item: (item.date, item.content)
+        ):
             if not self.force and entry.fingerprint in self._seen:
                 skipped += 1
                 continue

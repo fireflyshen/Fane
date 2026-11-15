@@ -49,6 +49,14 @@ class Wechat(TabularProvider[WechatOrder]):
 
     def parse_order(self, row: Mapping[str, Any]) -> WechatOrder | None:
         pay_time = self.parse_datetime(row["交易时间"], "交易时间")
+        # This label is descriptive; direction comes from the separate 收/支
+        # column. Preserve new WeChat labels so one new label cannot block a bill.
+        tx_type_original = str(row["交易类型"])
+        tx_type: TxType | str
+        try:
+            tx_type = TxType(tx_type_original)
+        except ValueError:
+            tx_type = tx_type_original
 
         return WechatOrder(
             order_id=row["交易单号"],
@@ -61,8 +69,8 @@ class Wechat(TabularProvider[WechatOrder]):
             money=self.parse_decimal(row["金额(元)"], "金额(元)"),
             status=row["当前状态"],
             method=row["支付方式"],
-            tx_type=self.parse_enum(TxType, row["交易类型"], "交易类型"),
-            tx_type_original=row["交易类型"],
+            tx_type=tx_type,
+            tx_type_original=tx_type_original,
             commision="",
         )
 

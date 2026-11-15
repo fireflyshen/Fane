@@ -46,7 +46,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
             self.response(404, {"error": "not_found"})
         except (ValueError, TypeError) as error:
-            self.response(400, {"error": "invalid_request", "message": str(error)})
+            self.response(
+                400, {"error": "invalid_request", "message": str(error)}
+            )
         except Exception as error:
             logging.error("HTTP operation failed: %s", type(error).__name__)
             self.response(

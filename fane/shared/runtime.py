@@ -14,7 +14,9 @@ def state_directory(journal: Path) -> Path:
     else:
         root = (
             Path(
-                os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local" / "state"))
+                os.environ.get(
+                    "XDG_STATE_HOME", str(Path.home() / ".local" / "state")
+                )
             ).expanduser()
             / "fane"
         )

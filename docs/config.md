@@ -1,6 +1,7 @@
 # 配置与数据格式参考
 
-CLI 参数见 [命令参考](cli.md)，实际操作见 [使用手册](guide.md)。本页说明 Fane YAML、订阅 JSON、外部分类 JSON 与环境变量。
+CLI 参数见 [命令参考](cli.md)，实际操作见 [使用手册](guide.md)。本页说明 Fane
+YAML、订阅 JSON、外部分类 JSON 与环境变量。
 
 ## 1. 三种配置各管什么
 
@@ -10,7 +11,8 @@ CLI 参数见 [命令参考](cli.md)，实际操作见 [使用手册](guide.md)�
 | subscriptions.json         | subscriptions check/generate                             | 固定月度计划，与账单来源无关               |
 | decisions.json             | classify apply                                           | 外部人工/AI 对某批分录的决策，不是长期配置 |
 
-最小 YAML 用 `fa config init` 创建。检查用 `fa config check --json`；严格检查加 `--strict`。命令行全局 --config 优先于 FANE_CONFIG，默认 ~/.flow/config.yaml。
+最小 YAML 用 `fa config init` 创建。检查用 `fa config check --json`；严格检查加
+`--strict`。命令行全局 --config 优先于 FANE_CONFIG，默认 ~/.flow/config.yaml。
 
 ## 2. Fane YAML 顶层
 
@@ -55,13 +57,15 @@ ledger:
 
 以下顶层字段为历史模型兼容而保留：`title`、`default-currency`、`default-cash-account`、`default-position-account`、`default-commission-account`、`default-pnl-account`、`default-third-party-custody-account`。当前支付宝/微信 reader 生成 CNY 订单，title 不改变输出，default-currency 不执行汇率转换；其余默认特殊账户也没有在普通转换流程中自动填充。实际支付/费用账户请用 method-account/target-account，支付宝额外收益账户用规则 pnl-account。
 
-顶层及来源规则中的未知字段会被模型忽略，config check 会给出警告；ledger 子设置禁止未知字段。避免依赖未识别字段实现行为。
+顶层及来源规则中的未知字段会被模型忽略，config
+check 会给出警告；ledger 子设置禁止未知字段。避免依赖未识别字段实现行为。
 
 ## 3. 分类规则
 
 ### 3.1 匹配与顺序
 
-规则从上往下遍历；同一规则的不同条件为 AND。同一字符串字段按 `separator`（默认逗号）拆成多个候选，候选为 OR，采用“候选是否包含于交易原字段”的子串匹配，不是正则或完整相等。
+规则从上往下遍历；同一规则的不同条件为 AND。同一字符串字段按
+`separator`（默认逗号）拆成多个候选，候选为 OR，采用“候选是否包含于交易原字段”的子串匹配，不是正则或完整相等。
 
 ```yaml
 wechat:
@@ -75,7 +79,8 @@ wechat:
       tags: food,lunch
 ```
 
-一条匹配规则可以只改支付账户，另一条再改费用账户。后面的匹配规则可以覆盖先前设置的同类账户或 tags。`ignore: true` 命中时跳过该交易并停止遍历。退款有历史处理：商品说明以“退款”开头时交换正负账户，并可能在匹配退款规则后提前返回。
+一条匹配规则可以只改支付账户，另一条再改费用账户。后面的匹配规则可以覆盖先前设置的同类账户或 tags。`ignore: true`
+命中时跳过该交易并停止遍历。退款有历史处理：商品说明以“退款”开头时交换正负账户，并可能在匹配退款规则后提前返回。
 
 不要添加没有条件的规则，除非确实需要匹配全部交易。`config check` 会警告。
 
@@ -96,7 +101,9 @@ wechat:
 | min-price / min-amount | 有效   | 有效                             | 最小金额，包含边界；两个名字为别名                     |
 | max-price / max-amount | 有效   | 有效                             | 最大金额，包含边界；两个名字为别名                     |
 
-日期时间支持 YYYY-MM-DD、YYYY-MM-DD HH:MM、YYYY-MM-DD HH:MM:SS。日期作为结束边界时包含当日到 23:59:59。每日时段支持 HH:MM 和 HH:MM:SS；区间常用 `..` 分隔。
+日期时间支持 YYYY-MM-DD、YYYY-MM-DD HH:MM、YYYY-MM-DD
+HH:MM:SS。日期作为结束边界时包含当日到 23:59:59。每日时段支持 HH:MM 和 HH:MM:SS；区间常用
+`..` 分隔。
 
 ### 3.3 动作与兼容字段
 
@@ -111,7 +118,8 @@ wechat:
 | status         | 未指定 | 历史兼容，两个来源当前都不参与规则匹配         |
 | full-match     | 未指定 | 历史兼容，当前不参与匹配，不能开启完整相等匹配 |
 
-无效兼容字段会在 config check 中警告；新配置应避免使用。分类导出的状态 metadata 仍可供人工阅读，不等于它可以成为自动规则条件。
+无效兼容字段会在 config
+check 中警告；新配置应避免使用。分类导出的状态 metadata 仍可供人工阅读，不等于它可以成为自动规则条件。
 
 ## 4. 同步任务 jobs
 
@@ -173,7 +181,8 @@ jobs:
 | path / glob | 恰好一个  | 单文件路径 / 通配路径；都支持日期占位符 |
 | on-missing  | 继承任务  | skip 或 error                           |
 
-来源路径占位符使用**运行日期**：`{date}`=YYYY-MM-DD、`{year}`=四位、`{month}`/`{day}`=两位。路由占位符使用**交易日期**：`{year}`、`{month}`、`{kind}`、`{provider}`。路由必须留在 journal-dir 内，禁止绝对路径和 `..`。
+来源路径占位符使用**运行日期**：`{date}`=YYYY-MM-DD、`{year}`=四位、`{month}`/`{day}`=两位。路由占位符使用**交易日期**：`{year}`、`{month}`、`{kind}`、`{provider}`。路由必须留在 journal-dir 内，禁止绝对路径和
+`..`。
 
 任务中的相对路径按执行时的 cwd 解析，不相对 YAML；自动化建议使用绝对路径。validator 的 command 是参数数组，不是 Shell 字符串；cwd 不设置则继承 Fane 工作目录，超时默认 300 秒。
 
@@ -242,7 +251,10 @@ foreign-credit-card-repayments:
 
 ## 7. 月度订阅 JSON
 
-订阅与账单共用 `normal.j2` 和渲染入口，可用同一 YAML `template-file` 或本次 `--template` 覆盖。分录采用 4 空格缩进，账户左对齐、金额右对齐、币种同列。默认账户列宽 55、金额列宽 10；长度超出时自动扩宽同一分录的两行。订阅保留配置金额的全部精度，身份和月份放在 `metadata` 中；自定义模板必须输出这些去重元数据。
+订阅与账单共用 `normal.j2` 和渲染入口，可用同一 YAML `template-file` 或本次
+`--template`
+覆盖。分录采用 4 空格缩进，账户左对齐、金额右对齐、币种同列。默认账户列宽 55、金额列宽 10；长度超出时自动扩宽同一分录的两行。订阅保留配置金额的全部精度，身份和月份放在
+`metadata` 中；自定义模板必须输出这些去重元数据。
 
 用 `fa subscriptions init` 创建暂停示例。JSON 顶层是数组，每项一笔固定计划：
 
@@ -297,7 +309,8 @@ Bills/journal/2026/2026-10.bean    实际分录
 
 ## 8. 分类决策 JSON
 
-完整 Schema 用 `fa classify schema --output /tmp/decision.schema.json` 导出，安装资源位置是 `fane/classify/schema.json`。不要手工维护另一个格式版本。
+完整 Schema 用 `fa classify schema --output /tmp/decision.schema.json`
+导出，安装资源位置是 `fane/classify/schema.json`。不要手工维护另一个格式版本。
 
 | 顶层/决策字段       | 说明                                                              |
 | ------------------- | ----------------------------------------------------------------- |
@@ -315,7 +328,11 @@ Bills/journal/2026/2026-10.bean    实际分录
 
 自动规则可用字段：支付宝 peer/item/category/type/method；微信 peer/item/category/tx_type/method；值不能为空、最长 200 字，不能有逗号、竖线或换行。自动分类不允许把不参与运行时匹配的 status、微信 type 写成规则。自动规则使用来源的完整原值，但未来匹配仍遵循现有子串规则语义。
 
-新增账户仅 Expenses / Income；中文说明 1..80 字且无换行/分号，费用标签 1..40 字且无换行/双引号。账户文件是 `accounts/data/expenses.bean` 或 `income.bean`，需已存在且被主账本引用。扫描目录固定为 journal/ 与 accounts/data/，不扫描任意 include 树。`--root` 可以改变扫描根，但账本仍由 --ledger/配置决定，应保证两者对应。
+新增账户仅 Expenses /
+Income；中文说明 1..80 字且无换行/分号，费用标签 1..40 字且无换行/双引号。账户文件是
+`accounts/expenses.bean` 或
+`income.bean`，需已存在且被主账本引用。扫描目录固定为 journal/ 与 accounts/，不扫描任意 include 树。`--root`
+可以改变扫描根，但账本仍由 --ledger/配置决定，应保证两者对应。
 
 Schema 描述外部工具的输出格式；apply 还检查账户存在、ID 是否当前有效、置信度、规则字段取值与覆盖情况等业务约束。默认任一缺失/defer 导致整批拒绝，--allow-partial 才应用已通过的部分。
 
@@ -339,7 +356,8 @@ Schema 描述外部工具的输出格式；apply 还检查账户存在、ID 是�
 
 ## 10. 当前行为边界
 
-- `kind=income` 的历史路由判定仅针对商品说明包含“收益发放”的订单，其余进入 expense/月度文件。这是文件分组约定，不能把 inspect 中 expense/income 数量理解为完整的财务收支统计；实际收支看 posting 账户。
+- `kind=income`
+  的历史路由判定仅针对商品说明包含“收益发放”的订单，其余进入 expense/月度文件。这是文件分组约定，不能把 inspect 中 expense/income 数量理解为完整的财务收支统计；实际收支看 posting 账户。
 - 普通账单 reader 输出 CNY；外币还款属于专门扩展，default-currency 不负责货币转换。
 - 单文件导入不更新 include；同步任务是否后置校验由 validators 配置决定。
 - 默认状态不在账本仓库，换目录或机器时需保留并迁移指纹索引。

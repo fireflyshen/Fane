@@ -13,12 +13,17 @@ from fane.shared.output import command_errors, output_json
 
 def query(
     ctx: typer.Context,
-    start: Annotated[str | None, typer.Argument(help="起始日期 YYYY-MM-DD")] = None,
-    end: Annotated[str | None, typer.Argument(help="结束日期 YYYY-MM-DD")] = None,
+    start: Annotated[
+        str | None, typer.Argument(help="起始日期 YYYY-MM-DD")
+    ] = None,
+    end: Annotated[
+        str | None, typer.Argument(help="结束日期 YYYY-MM-DD")
+    ] = None,
     ledger: LedgerOption = None,
     limit: Annotated[int, typer.Option("--limit", "-n", min=1, max=500)] = 500,
     input_file: Annotated[
-        str | None, typer.Option("--input", "-i", help="JSON 请求文件；- 读取 stdin")
+        str | None,
+        typer.Option("--input", "-i", help="JSON 请求文件；- 读取 stdin"),
     ] = None,
     output: Annotated[str, typer.Option("--output", "-o")] = "-",
 ):
@@ -31,12 +36,20 @@ def query(
             if start is not None or end is not None:
                 raise ValueError("日期参数与 --input 只能选一种")
             payload = json.loads(
-                sys.stdin.read() if input_file == "-" else Path(input_file).read_text()
+                sys.stdin.read()
+                if input_file == "-"
+                else Path(input_file).read_text()
             )
         else:
-            payload = {"start_date": start, "end_date": end, "max_transactions": limit}
+            payload = {
+                "start_date": start,
+                "end_date": end,
+                "max_transactions": limit,
+            }
         output_json(
-            LedgerService(BeancountQuery(context(ledger, ctx).ledger)).execute(payload),
+            LedgerService(BeancountQuery(context(ledger, ctx).ledger)).execute(
+                payload
+            ),
             output,
         )
 
@@ -58,6 +71,8 @@ def serve(
             create_server(
                 host,
                 port,
-                query=LedgerService(BeancountQuery(context(ledger, ctx).ledger)),
+                query=LedgerService(
+                    BeancountQuery(context(ledger, ctx).ledger)
+                ),
             )
         )

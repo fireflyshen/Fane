@@ -34,7 +34,9 @@ def imported_range(path):
         try:
             text = "\n".join(
                 " ".join(str(v or "") for v in row)
-                for row in workbook.active.iter_rows(max_row=20, values_only=True)
+                for row in workbook.active.iter_rows(
+                    max_row=20, values_only=True
+                )
             )
         finally:
             workbook.close()

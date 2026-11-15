@@ -21,9 +21,15 @@ class MonthlyTest(unittest.TestCase):
             root=self.root,
             now=lambda: "2026-10",
             clock=lambda: self.time,
-            ledger={"2026-08": "August", "2026-09": "September", "2026-10": "October"},
+            ledger={
+                "2026-08": "August",
+                "2026-09": "September",
+                "2026-10": "October",
+            },
         )
-        self.report.facts = {month: {"validated": True} for month in self.report.ledger}
+        self.report.facts = {
+            month: {"validated": True} for month in self.report.ledger
+        }
         self.report.notice()
         self.time += 601
 
@@ -50,7 +56,12 @@ class MonthlyTest(unittest.TestCase):
         self.assertTrue(self.report.store(self.payload(claim))["stored"])
         self.report.begin(claim)
         return self.report.sent(
-            {**claim, "messageId": "fixture", "accepted_count": 1, "rejected_count": 0}
+            {
+                **claim,
+                "messageId": "fixture",
+                "accepted_count": 1,
+                "rejected_count": 0,
+            }
         )
 
     def change(self, month, text):
@@ -60,7 +71,9 @@ class MonthlyTest(unittest.TestCase):
 
     def test_atomic_claim_and_dry_run(self):
         self.assertEqual(
-            self.report.prepare({"analysisMonth": "2026-09", "dryRun": True})["reason"],
+            self.report.prepare({"analysisMonth": "2026-09", "dryRun": True})[
+                "reason"
+            ],
             "dry-run",
         )
         first = self.claim()
@@ -159,7 +172,9 @@ class MonthlyTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.report.begin(claim)
         with self.assertRaises(ValueError):
-            self.report.sent({**claim, "accepted_count": 0, "rejected_count": 1})
+            self.report.sent(
+                {**claim, "accepted_count": 0, "rejected_count": 1}
+            )
         self.report.release(claim)
         self.time += 100000
         self.assertEqual(self.claim()["reason"], "delivery-pending")
@@ -175,7 +190,10 @@ class MonthlyTest(unittest.TestCase):
         self.time += 601
         self.assertEqual(self.claim()["reason"], "already-generated")
         self.assertEqual(
-            self.report.db.execute("SELECT COUNT(*) FROM history").fetchone()[0], 1
+            self.report.db.execute("SELECT COUNT(*) FROM history").fetchone()[
+                0
+            ],
+            1,
         )
 
     def test_edit_between_save_and_send_cancels_unsent_report(self):
@@ -194,7 +212,9 @@ class MonthlyTest(unittest.TestCase):
             "awaiting-rollover",
         )
         self.report.notice()
-        self.assertTrue(self.report.prepare({"analysisMonth": "2026-10"})["eligible"])
+        self.assertTrue(
+            self.report.prepare({"analysisMonth": "2026-10"})["eligible"]
+        )
 
 
 if __name__ == "__main__":

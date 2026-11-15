@@ -11,14 +11,15 @@ from fane.shared.context import LedgerOption, context, get_cli_context
 from fane.shared.output import command_errors, output_json, output_text
 
 classify_app = typer.Typer(
-    help="导出待分类交易、查看决策格式、预览或应用外部分类结果。", no_args_is_help=True
+    help="导出待分类交易、查看决策格式、预览或应用外部分类结果。",
+    no_args_is_help=True,
 )
 RootOption = Annotated[
     Path | None,
     typer.Option(
         "--root",
         envvar="BILLS_ROOT",
-        help="扫描 journal/ 与 accounts/data/ 的账本根目录",
+        help="扫描 journal/ 与 accounts/ 的账本根目录",
     ),
 ]
 
@@ -32,7 +33,9 @@ def schema(
     """输出外部 AI/人工决策所需的 JSON Schema；不调用模型。"""
     with command_errors("读取决策格式失败"):
         output_text(
-            files("fane.classify").joinpath("schema.json").read_text(encoding="utf-8"),
+            files("fane.classify")
+            .joinpath("schema.json")
+            .read_text(encoding="utf-8"),
             output,
         )
 
@@ -48,7 +51,9 @@ def extract(
 ):
     """只读导出占位账户分录、账户目录和来源字段。"""
     with command_errors("分类导出失败"):
-        location = root.expanduser().resolve() if root else context(ledger, ctx).root
+        location = (
+            root.expanduser().resolve() if root else context(ledger, ctx).root
+        )
         output_json(fixme.extraction_payload(location), output)
 
 
@@ -58,7 +63,10 @@ def apply(
     ledger: LedgerOption = None,
     root: RootOption = None,
     input_file: Annotated[
-        str, typer.Option("--input", "-i", help="决策 JSON 文件；默认 - 从 stdin 读取")
+        str,
+        typer.Option(
+            "--input", "-i", help="决策 JSON 文件；默认 - 从 stdin 读取"
+        ),
     ] = "-",
     input_base64: Annotated[
         str | None,
@@ -70,7 +78,8 @@ def apply(
         bool, typer.Option("--write", help="正式修改账户并追加规则；默认仅预览")
     ] = False,
     min_confidence: Annotated[
-        float, typer.Option("--min-confidence", min=0, max=1, help="最低应用置信度")
+        float,
+        typer.Option("--min-confidence", min=0, max=1, help="最低应用置信度"),
     ] = 0.92,
     allow_partial: Annotated[
         bool, typer.Option("--allow-partial", help="允许保留缺失/暂缓的决策")

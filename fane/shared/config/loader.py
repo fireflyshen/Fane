@@ -20,13 +20,17 @@ def load_config(file: str | Path) -> dict[str, Any]:
         if config is None:
             raise ConfigError(f"配置文件为空: {config_path}")
         if not isinstance(config, dict):
-            raise ConfigError(f"配置文件格式错误，应为 YAML 对象: {config_path}")
+            raise ConfigError(
+                f"配置文件格式错误，应为 YAML 对象: {config_path}"
+            )
         template = config.get("template-file")
         if isinstance(template, str) and template:
             path = Path(template).expanduser()
             config["template-file"] = str(
                 (
-                    path if path.is_absolute() else config_path.resolve().parent / path
+                    path
+                    if path.is_absolute()
+                    else config_path.resolve().parent / path
                 ).resolve()
             )
         repayments = config.get("foreign-credit-card-repayments", []) or []

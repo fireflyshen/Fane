@@ -31,7 +31,9 @@ class SyncState:
             value = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise SyncError(f"无法读取同步状态 {self.path}: {error}") from error
-        if not isinstance(value, dict) or not isinstance(value.get("sources"), dict):
+        if not isinstance(value, dict) or not isinstance(
+            value.get("sources"), dict
+        ):
             raise SyncError(f"同步状态格式无效: {self.path}")
         return value
 
@@ -57,7 +59,11 @@ class SyncState:
         try:
             with handle:
                 json.dump(
-                    self.data, handle, ensure_ascii=False, indent=2, sort_keys=True
+                    self.data,
+                    handle,
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
                 )
                 handle.write("\n")
                 handle.flush()

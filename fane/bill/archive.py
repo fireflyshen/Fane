@@ -36,7 +36,16 @@ def unpack(path, suffix, password=None):
                 copy.write(raw)
                 copy.flush()
                 result = subprocess.run(
-                    ["fcrackzip", "-b", "-c", "1", "-l", "6-6", "-u", copy.name],
+                    [
+                        "fcrackzip",
+                        "-b",
+                        "-c",
+                        "1",
+                        "-l",
+                        "6-6",
+                        "-u",
+                        copy.name,
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=300,

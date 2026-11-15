@@ -76,7 +76,8 @@ class MonthlyRuleTest(unittest.TestCase):
         self.bill("alipay", end="2026-09-15 23:59:59")
         path = self.bill("wechat")
         self.assertEqual(
-            missing_sources(self.root, "2026-09", ["alipay", "wechat"]), ["alipay"]
+            missing_sources(self.root, "2026-09", ["alipay", "wechat"]),
+            ["alipay"],
         )
         path.write_bytes(path.read_bytes() + b"changed")
         self.assertEqual(
@@ -89,7 +90,9 @@ class MonthlyRuleTest(unittest.TestCase):
         self.bill("alipay", start="2026-09-16 00:00:00", name="second")
         self.assertEqual(missing_sources(self.root, "2026-09", ["alipay"]), [])
         self.bill("alipay", start="2026-09-16 00:00:01", name="second")
-        self.assertEqual(missing_sources(self.root, "2026-09", ["alipay"]), ["alipay"])
+        self.assertEqual(
+            missing_sources(self.root, "2026-09", ["alipay"]), ["alipay"]
+        )
 
     def test_monthly_boundary_and_only_previous_month(self):
         self.complete()

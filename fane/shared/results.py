@@ -22,7 +22,9 @@ def fingerprint_order(provider: str, order: Order) -> str:
     if order_id:
         return f"{provider}:{order_id}"
 
-    merchant_order_id = order.merchant_order_id or order.meta_data.get("merchant_id")
+    merchant_order_id = order.merchant_order_id or order.meta_data.get(
+        "merchant_id"
+    )
     if merchant_order_id:
         return f"{provider}:merchant:{merchant_order_id}"
 

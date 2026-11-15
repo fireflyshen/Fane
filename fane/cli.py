@@ -11,7 +11,9 @@ from fane.shared.context import CliContext, LedgerOption, context
 from fane.shared.output import command_errors
 from fane.version import get_version
 
-app = typer.Typer(help="Fane：账单、分类、订阅、账本与查询。", no_args_is_help=True)
+app = typer.Typer(
+    help="Fane：账单、分类、订阅、账本与查询。", no_args_is_help=True
+)
 
 
 def version_callback(value: bool):
@@ -26,11 +28,17 @@ def initialize(
     config: Annotated[
         Path,
         typer.Option(
-            "--config", "-c", envvar="FANE_CONFIG", help="YAML 配置；放在命令之前"
+            "--config",
+            "-c",
+            envvar="FANE_CONFIG",
+            help="YAML 配置；放在命令之前",
         ),
     ] = DEFAULT_CONFIG_PATH,
     version: Annotated[
-        bool, typer.Option("--version", "-v", is_eager=True, callback=version_callback)
+        bool,
+        typer.Option(
+            "--version", "-v", is_eager=True, callback=version_callback
+        ),
     ] = False,
 ):
     ctx.obj = CliContext(config.expanduser())

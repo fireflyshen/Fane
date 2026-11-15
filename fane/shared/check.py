@@ -27,7 +27,9 @@ def ambiguous_account_segments(
         if account in allowed_accounts:
             continue
         matches = tuple(
-            segment for segment in account.split(":") if segment.casefold() in denied
+            segment
+            for segment in account.split(":")
+            if segment.casefold() in denied
         )
         if matches:
             failures[account] = matches
@@ -84,7 +86,9 @@ def commodities_used(entries) -> set[str]:
     return commodities
 
 
-def metadata_required_for(account: str, requirements: dict[str, set[str]]) -> set[str]:
+def metadata_required_for(
+    account: str, requirements: dict[str, set[str]]
+) -> set[str]:
     required = set()
     for prefix, keys in requirements.items():
         if account == prefix or account.startswith(prefix + ":"):
@@ -120,10 +124,14 @@ def unreferenced_bean_files(root: Path, ledger: Path) -> list[str]:
 
     reachable = included_bean_files(ledger)
     managed = {path.resolve() for path in root.rglob("*.bean")}
-    return sorted(str(path.relative_to(root.resolve())) for path in managed - reachable)
+    return sorted(
+        str(path.relative_to(root.resolve())) for path in managed - reachable
+    )
 
 
-def unknown_config_accounts(opens: set[str], config: Path | None = None) -> list[str]:
+def unknown_config_accounts(
+    opens: set[str], config: Path | None = None
+) -> list[str]:
     """Find non-placeholder Fane account references without an open directive."""
     if config is None or not config.is_file():
         return []
@@ -137,12 +145,17 @@ def unknown_config_accounts(opens: set[str], config: Path | None = None) -> list
     conversion = {key: value for key, value in data.items() if key != "ledger"}
     references = set(ACCOUNT_REFERENCE_RE.findall(yaml.safe_dump(conversion)))
     return sorted(
-        account for account in references - opens if not account.endswith(":FIXME")
+        account
+        for account in references - opens
+        if not account.endswith(":FIXME")
     )
 
 
 def validate_ledger(
-    ledger: Path, policy: Policy, config: Path | None = None, allowed_accounts=()
+    ledger: Path,
+    policy: Policy,
+    config: Path | None = None,
+    allowed_accounts=(),
 ) -> list[str]:
     entries, errors, options = loader.load_file(str(ledger))
     failures = []
@@ -156,12 +169,16 @@ def validate_ledger(
         failures.append("Managed .bean files not reachable from main.bean:")
         failures.extend(f"  - {path}" for path in unreferenced_files)
 
-    opens = {entry.account: entry for entry in entries if isinstance(entry, Open)}
+    opens = {
+        entry.account: entry for entry in entries if isinstance(entry, Open)
+    }
     first_usage = used_accounts(entries)
 
     unknown_fane_accounts = unknown_config_accounts(set(opens), config=config)
     if unknown_fane_accounts:
-        failures.append("Fane config references accounts without open directives:")
+        failures.append(
+            "Fane config references accounts without open directives:"
+        )
         failures.extend(f"  - {account}" for account in unknown_fane_accounts)
 
     unused_opens = unused_open_accounts(opens, first_usage)
@@ -201,10 +218,13 @@ def validate_ledger(
     missing_required = sorted(policy.required_currencies - operating_currencies)
     if missing_required:
         failures.append(
-            "Missing required operating currencies: " + ", ".join(missing_required)
+            "Missing required operating currencies: "
+            + ", ".join(missing_required)
         )
 
-    unreported_commodities = sorted(commodities_used(entries) - operating_currencies)
+    unreported_commodities = sorted(
+        commodities_used(entries) - operating_currencies
+    )
     if unreported_commodities:
         failures.append(
             "Commodities used but not configured as operating currencies: "

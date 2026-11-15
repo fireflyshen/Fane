@@ -16,7 +16,9 @@ def snapshot(path, cutoff=None, day=None):
 
     entries, errors, _ = loader.load_file(str(path))
     if errors:
-        raise RuntimeError("Ledger validation failed; fix the ledger before reporting")
+        raise RuntimeError(
+            "Ledger validation failed; fix the ledger before reporting"
+        )
     months = {}
     for entry in entries:
         if (
@@ -30,7 +32,11 @@ def snapshot(path, cutoff=None, day=None):
     hashes = {}
 
     def economic_units(unit):
-        return [format(unit.number.normalize(), "f"), unit.currency] if unit else None
+        return (
+            [format(unit.number.normalize(), "f"), unit.currency]
+            if unit
+            else None
+        )
 
     def economic(entry):
         postings = []
@@ -63,7 +69,9 @@ def snapshot(path, cutoff=None, day=None):
         result[month] = output.getvalue()
         hashes[month] = hashlib.sha256(
             json.dumps(
-                sorted((economic(e) for e in items), key=lambda e: json.dumps(e)),
+                sorted(
+                    (economic(e) for e in items), key=lambda e: json.dumps(e)
+                ),
                 ensure_ascii=False,
                 separators=(",", ":"),
             ).encode()
@@ -75,7 +83,9 @@ def snapshot(path, cutoff=None, day=None):
             end_date=min(
                 cutoff or date.max,
                 date(
-                    year, number, min(day or 31, calendar.monthrange(year, number)[1])
+                    year,
+                    number,
+                    min(day or 31, calendar.monthrange(year, number)[1]),
                 ),
             ),
             max_transactions=len(items),
@@ -132,7 +142,9 @@ def snapshot(path, cutoff=None, day=None):
             c: [
                 dict(payee=k[1], count=v[0], amount=str(v[1]))
                 for k, v in sorted(
-                    frequencies.items(), key=lambda x: (x[1][0], x[1][1]), reverse=True
+                    frequencies.items(),
+                    key=lambda x: (x[1][0], x[1][1]),
+                    reverse=True,
                 )
                 if k[0] == c and v[0] > 1
             ][:5]

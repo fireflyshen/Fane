@@ -13,6 +13,7 @@ class DealType(Enum):
 class TxType(Enum):
     tx_type_consume = "商户消费"
     tx_type_scan_payment = "扫二维码付款"
+    tx_type_qr_receipt = "二维码收款"
     tx_type_credit = "信用卡还款"
     tx_type_transfer = "转账"
     tx_type_transfer_refund = "转账-退款"
@@ -31,7 +32,7 @@ class WechatOrder:
     peer: str
     item: str
     money: Decimal
-    tx_type: TxType
+    tx_type: TxType | str
     tx_type_original: str
     status: str
     method: str

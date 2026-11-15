@@ -30,11 +30,16 @@ class TabularProvider(ABC, Generic[OrderT]):
             raise ProviderError(f"账单文件不存在: {filename}")
 
     def ensure_columns(
-        self, columns: Iterable[Any], required_columns: Iterable[str], filename: str
+        self,
+        columns: Iterable[Any],
+        required_columns: Iterable[str],
+        filename: str,
     ) -> None:
         available_columns = {str(column) for column in columns}
         missing_columns = [
-            column for column in required_columns if column not in available_columns
+            column
+            for column in required_columns
+            if column not in available_columns
         ]
         if missing_columns:
             missing = ", ".join(missing_columns)
@@ -52,7 +57,9 @@ class TabularProvider(ABC, Generic[OrderT]):
                 ) from ve
         raise ProviderError(f"{field_name} 类型无法解析为时间: {value}")
 
-    def parse_enum(self, enum_type: type[EnumT], value: Any, field_name: str) -> EnumT:
+    def parse_enum(
+        self, enum_type: type[EnumT], value: Any, field_name: str
+    ) -> EnumT:
         try:
             return enum_type(value)
         except ValueError as ve:

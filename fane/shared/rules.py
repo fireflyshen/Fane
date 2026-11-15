@@ -95,7 +95,9 @@ class RuleAccountResolver:
                 ignore, plus_account, minus_account, extra_account, tags
             )
 
-        return AccountResult(ignore, minus_account, plus_account, extra_account, tags)
+        return AccountResult(
+            ignore, minus_account, plus_account, extra_account, tags
+        )
 
     def _matches_rule(self, rule: RuleBase, order: Order) -> bool:
         match = True
@@ -104,7 +106,9 @@ class RuleAccountResolver:
             rule_value = getattr(rule, field.rule_attr)
             if rule_value is not None:
                 order_value = getattr(order, field.order_attr)
-                match = split_find_contains(rule_value, order_value, separator, match)
+                match = split_find_contains(
+                    rule_value, order_value, separator, match
+                )
                 if not match:
                     return False
         match = self._matches_amount_range(rule, order, match)
@@ -112,7 +116,9 @@ class RuleAccountResolver:
             return False
         return self._matches_time_range(rule, order, match)
 
-    def _matches_amount_range(self, rule: RuleBase, order: Order, match: bool) -> bool:
+    def _matches_amount_range(
+        self, rule: RuleBase, order: Order, match: bool
+    ) -> bool:
         if rule.min_price is None and rule.max_price is None:
             return match
         if rule.min_price is not None and rule.max_price is not None:
@@ -127,7 +133,9 @@ class RuleAccountResolver:
             return False
         return match
 
-    def _matches_time_range(self, rule: RuleBase, order: Order, match: bool) -> bool:
+    def _matches_time_range(
+        self, rule: RuleBase, order: Order, match: bool
+    ) -> bool:
         if (
             rule.time is None
             and rule.day_range is None
@@ -189,7 +197,9 @@ class RuleAccountResolver:
             if separator in text:
                 start, end = text.split(separator, 1)
                 return start.strip(), end.strip()
-        raise ConfigError(f"day-range 区间格式错误: {value}。请使用 15..16 或 15-16")
+        raise ConfigError(
+            f"day-range 区间格式错误: {value}。请使用 15..16 或 15-16"
+        )
 
     def _parse_day(self, value: str, source: str) -> int:
         if not value.isdecimal():
@@ -210,7 +220,9 @@ class RuleAccountResolver:
             "请使用 start..end，例如 2026-06-01..2026-06-30 或 09:00..18:00"
         )
 
-    def _parse_datetime_bound(self, value: str, *, is_end: bool) -> Optional[datetime]:
+    def _parse_datetime_bound(
+        self, value: str, *, is_end: bool
+    ) -> Optional[datetime]:
         if value == "":
             return None
         for fmt in DATETIME_FORMATS:
@@ -234,7 +246,9 @@ class RuleAccountResolver:
                 continue
         raise ConfigError(f"time 时间格式错误: {value}。支持 HH:MM 或 HH:MM:SS")
 
-    def _clock_time_in_range(self, current: time, start: time, end: time) -> bool:
+    def _clock_time_in_range(
+        self, current: time, start: time, end: time
+    ) -> bool:
         if start <= end:
             return start <= current <= end
         return current >= start or current <= end

@@ -106,7 +106,9 @@ class SyncService:
                 else require_classified
             )
             if strict and report.unmatched:
-                raise SyncError(f"拒绝同步: 仍有 {report.unmatched} 条交易使用默认账户")
+                raise SyncError(
+                    f"拒绝同步: 仍有 {report.unmatched} 条交易使用默认账户"
+                )
 
             writer = JournalWriter(
                 self.journal_dir,
@@ -118,7 +120,9 @@ class SyncService:
             report.skipped = len(entries) - len(planned)
             report.targets = dict(
                 sorted(
-                    Counter(str(writer.target_file(item)) for item in planned).items()
+                    Counter(
+                        str(writer.target_file(item)) for item in planned
+                    ).items()
                 )
             )
             if dry_run:
@@ -137,7 +141,9 @@ class SyncService:
                 report.written = result["written"]
                 report.skipped = result["skipped"]
                 self._run_validators()
-                completed_at = datetime.now().astimezone().isoformat(timespec="seconds")
+                completed_at = (
+                    datetime.now().astimezone().isoformat(timespec="seconds")
+                )
                 for key, path, digest in changed:
                     stat = path.stat()
                     state.update_source(
@@ -193,7 +199,11 @@ class SyncService:
                 ):
                     report.sources.append(
                         SourceReport(
-                            source.id, source.provider, str(path), "unchanged", digest
+                            source.id,
+                            source.provider,
+                            str(path),
+                            "unchanged",
+                            digest,
                         )
                     )
                     continue
@@ -233,13 +243,17 @@ class SyncService:
         try:
             rendered = template.format(**variables)
         except (KeyError, ValueError) as error:
-            raise SyncError(f"来源 {source.id} 的路径模板无效: {error}") from error
+            raise SyncError(
+                f"来源 {source.id} 的路径模板无效: {error}"
+            ) from error
         if source.path is not None:
             path = Path(rendered).expanduser()
             return [path] if path.is_file() else []
         return [
             Path(value)
-            for value in sorted(glob_module.glob(str(Path(rendered).expanduser())))
+            for value in sorted(
+                glob_module.glob(str(Path(rendered).expanduser()))
+            )
             if Path(value).is_file()
         ]
 
@@ -261,7 +275,9 @@ class SyncService:
     ) -> list[RenderedEntry]:
         seen = set(writer.seen_fingerprints)
         planned: list[RenderedEntry] = []
-        for entry in sorted(entries, key=lambda item: (item.date, item.content)):
+        for entry in sorted(
+            entries, key=lambda item: (item.date, item.content)
+        ):
             if entry.fingerprint in seen:
                 continue
             seen.add(entry.fingerprint)
@@ -270,7 +286,10 @@ class SyncService:
 
     @staticmethod
     def _snapshot(paths: set[Path]) -> dict[Path, bytes | None]:
-        return {path: path.read_bytes() if path.is_file() else None for path in paths}
+        return {
+            path: path.read_bytes() if path.is_file() else None
+            for path in paths
+        }
 
     @staticmethod
     def _restore(snapshots: dict[Path, bytes | None]) -> None:
@@ -287,7 +306,9 @@ class SyncService:
             try:
                 result = subprocess.run(
                     validator.command,
-                    cwd=Path(validator.cwd).expanduser() if validator.cwd else None,
+                    cwd=Path(validator.cwd).expanduser()
+                    if validator.cwd
+                    else None,
                     capture_output=True,
                     text=True,
                     timeout=validator.timeout_seconds,

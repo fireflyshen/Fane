@@ -91,7 +91,9 @@ def parse_amount(value: object) -> Decimal:
     try:
         amount = Decimal(str(value))
     except (InvalidOperation, TypeError) as exc:
-        raise ValueError(f"amount must be a positive decimal: {value!r}") from exc
+        raise ValueError(
+            f"amount must be a positive decimal: {value!r}"
+        ) from exc
     if not amount.is_finite() or amount <= 0:
         raise ValueError(f"amount must be positive: {value!r}")
     return amount
@@ -146,7 +148,9 @@ def load_subscriptions(config_path: Path) -> list[Subscription]:
 
         status = item.get("status", "active")
         if status not in {"active", "paused", "cancelled"}:
-            raise ValueError(f"{sub_id}: status must be active, paused or cancelled")
+            raise ValueError(
+                f"{sub_id}: status must be active, paused or cancelled"
+            )
 
         kind = item.get("type", "expense")
         if kind not in {"expense", "transfer"}:
@@ -154,12 +158,16 @@ def load_subscriptions(config_path: Path) -> list[Subscription]:
 
         interval = item.get("interval", "monthly")
         if interval != "monthly":
-            raise ValueError(f"{sub_id}: only monthly interval is currently supported")
+            raise ValueError(
+                f"{sub_id}: only monthly interval is currently supported"
+            )
 
         debit_account = item.get("debit_account") or item.get("expense_account")
         credit_account = item.get("credit_account") or item.get("asset_account")
         if not debit_account or not credit_account:
-            raise ValueError(f"{sub_id}: debit_account and credit_account are required")
+            raise ValueError(
+                f"{sub_id}: debit_account and credit_account are required"
+            )
         if not item.get("payee"):
             raise ValueError(f"{sub_id}: payee is required")
         if not item.get("narration"):
@@ -167,15 +175,21 @@ def load_subscriptions(config_path: Path) -> list[Subscription]:
 
         for field in ("payee", "narration", "currency"):
             if not isinstance(item.get(field), str) or not item[field].strip():
-                raise ValueError(f"{sub_id}: {field} must be a non-empty string")
-        if not isinstance(debit_account, str) or not isinstance(credit_account, str):
+                raise ValueError(
+                    f"{sub_id}: {field} must be a non-empty string"
+                )
+        if not isinstance(debit_account, str) or not isinstance(
+            credit_account, str
+        ):
             raise ValueError(f"{sub_id}: accounts must be strings")
 
         raw_day = item.get("billing_day", item.get("day_of_month", 1))
         try:
             billing_day = int(raw_day)
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"{sub_id}: billing_day must be an integer") from exc
+            raise ValueError(
+                f"{sub_id}: billing_day must be an integer"
+            ) from exc
         if isinstance(raw_day, (bool, float)):
             raise ValueError(f"{sub_id}: billing_day must be an integer")
         if not 1 <= billing_day <= 31:
@@ -187,7 +201,9 @@ def load_subscriptions(config_path: Path) -> list[Subscription]:
             parse_date(end_date, f"{sub_id}.end_date") if end_date else None
         )
         if parsed_end_date and parsed_end_date < start_date:
-            raise ValueError(f"{sub_id}: end_date must not be before start_date")
+            raise ValueError(
+                f"{sub_id}: end_date must not be before start_date"
+            )
 
         subscriptions.append(
             Subscription(
@@ -213,9 +229,13 @@ def load_subscriptions(config_path: Path) -> list[Subscription]:
 def load_ledger_state(ledger: Path):
     entries, errors, options = loader.load_file(str(ledger))
     if errors:
-        raise ValueError("main.bean has Beancount errors; run fa ledger validate first")
+        raise ValueError(
+            "main.bean has Beancount errors; run fa ledger validate first"
+        )
 
-    open_accounts = {entry.account for entry in entries if isinstance(entry, Open)}
+    open_accounts = {
+        entry.account for entry in entries if isinstance(entry, Open)
+    }
     operating_currencies = set(options.get("operating_currency", []))
     generated_keys = set()
     legacy_fingerprints = set()
@@ -244,7 +264,12 @@ def load_ledger_state(ledger: Path):
                     )
                 )
 
-    return open_accounts, operating_currencies, generated_keys, legacy_fingerprints
+    return (
+        open_accounts,
+        operating_currencies,
+        generated_keys,
+        legacy_fingerprints,
+    )
 
 
 def validate_subscriptions(subscriptions, open_accounts, operating_currencies):
@@ -257,8 +282,12 @@ def validate_subscriptions(subscriptions, open_accounts, operating_currencies):
             failures.append(
                 f"{sub.id}: currency is not an operating currency: {sub.currency}"
             )
-        if sub.kind == "expense" and not sub.debit_account.startswith("Expenses:"):
-            failures.append(f"{sub.id}: expense subscriptions should debit Expenses:*")
+        if sub.kind == "expense" and not sub.debit_account.startswith(
+            "Expenses:"
+        ):
+            failures.append(
+                f"{sub.id}: expense subscriptions should debit Expenses:*"
+            )
         if sub.kind == "transfer" and sub.debit_account.startswith("Expenses:"):
             failures.append(
                 f"{sub.id}: transfer subscriptions should not debit Expenses:*"
@@ -266,7 +295,9 @@ def validate_subscriptions(subscriptions, open_accounts, operating_currencies):
     return failures
 
 
-def generate_entries(subscriptions, start, until, generated_keys, legacy_fingerprints):
+def generate_entries(
+    subscriptions, start, until, generated_keys, legacy_fingerprints
+):
     entries = []
     for sub in subscriptions:
         if sub.status != "active":
@@ -304,10 +335,18 @@ def update_indexes(generated_entries, root: Path):
         year_dir.mkdir(parents=True, exist_ok=True)
         index_path = year_dir / "index.bean"
         months = sorted(
-            {entry.date.month for entry in generated_entries if entry.date.year == year}
+            {
+                entry.date.month
+                for entry in generated_entries
+                if entry.date.year == year
+            }
         )
 
-        content = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
+        content = (
+            index_path.read_text(encoding="utf-8")
+            if index_path.exists()
+            else ""
+        )
         lines = content.splitlines()
         for month in months:
             include = f'include "{year}-{month:02d}.bean"'
@@ -315,14 +354,20 @@ def update_indexes(generated_entries, root: Path):
             if include in lines:
                 continue
             if commented in lines:
-                lines = [include if line == commented else line for line in lines]
+                lines = [
+                    include if line == commented else line for line in lines
+                ]
             else:
                 lines.append(include)
-        index_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        index_path.write_text(
+            "\n".join(lines).rstrip() + "\n", encoding="utf-8"
+        )
 
     journal_index = root / "journal" / "index.bean"
     content = (
-        journal_index.read_text(encoding="utf-8") if journal_index.exists() else ""
+        journal_index.read_text(encoding="utf-8")
+        if journal_index.exists()
+        else ""
     )
     lines = content.splitlines()
     for year in touched_years:
@@ -333,7 +378,9 @@ def update_indexes(generated_entries, root: Path):
     journal_index.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
-def write_entries(generated_entries, root: Path, template_file: Path | None = None):
+def write_entries(
+    generated_entries, root: Path, template_file: Path | None = None
+):
     by_path = {}
     for entry in generated_entries:
         by_path.setdefault(entry.target_path(root), []).append(entry)
@@ -391,7 +438,9 @@ class SubscriptionService:
         subscriptions, generated, legacy = self._load()
         entries = generate_entries(subscriptions, start, end, generated, legacy)
         report = {
-            "status": "dry-run" if not write else ("written" if entries else "noop"),
+            "status": "dry-run"
+            if not write
+            else ("written" if entries else "noop"),
             "total": len(entries),
             "written": len(entries) if write else 0,
             "entries": [
@@ -413,7 +462,8 @@ class SubscriptionService:
             )
             targets.add(self.root / "journal" / "index.bean")
             snapshots = {
-                path: path.read_bytes() if path.exists() else None for path in targets
+                path: path.read_bytes() if path.exists() else None
+                for path in targets
             }
             try:
                 write_entries(entries, self.root, template_file)

@@ -21,7 +21,9 @@ wechat:
 """
 
 
-config_app = typer.Typer(help="创建和检查 Fane YAML 配置。", no_args_is_help=True)
+config_app = typer.Typer(
+    help="创建和检查 Fane YAML 配置。", no_args_is_help=True
+)
 
 
 @config_app.command("init")
@@ -35,7 +37,9 @@ def initialize(
     with command_errors("配置初始化失败"):
         target = get_cli_context(ctx).config_path
         if target.exists() and not force:
-            raise ValueError(f"配置文件已存在，未覆盖: {target}；覆盖需 --force")
+            raise ValueError(
+                f"配置文件已存在，未覆盖: {target}；覆盖需 --force"
+            )
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(DEFAULT_CONFIG, encoding="utf-8")
         typer.echo(f"已创建配置文件: {target}")
@@ -47,7 +51,9 @@ def check(
     strict: Annotated[
         bool, typer.Option("--strict", help="兼容性警告也视为失败")
     ] = False,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON 诊断报告")] = False,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="JSON 诊断报告")
+    ] = False,
 ):
     """检查配置、规则和关联路径；不修改文件。"""
     report = diagnose_config(
@@ -56,7 +62,10 @@ def check(
             name
             for name in ("alipay", "wechat")
             if (
-                Path(__file__).parents[1] / "bill/providers" / name / "reader.py"
+                Path(__file__).parents[1]
+                / "bill/providers"
+                / name
+                / "reader.py"
             ).is_file()
         ),
     )

@@ -34,14 +34,18 @@ def ranks(names, connections):
             if incoming[target] == 0:
                 queue.append(target)
     if count != len(names):
-        raise ValueError("Workflow contains a cycle; needs a separate canvas plan")
+        raise ValueError(
+            "Workflow contains a cycle; needs a separate canvas plan"
+        )
     return rank
 
 
 def note(workflow, title, description, members, color=7):
     xs, ys = zip(*(node["position"] for node in members))
     return {
-        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, workflow["id"] + "/layout/" + title)),
+        "id": str(
+            uuid.uuid5(uuid.NAMESPACE_URL, workflow["id"] + "/layout/" + title)
+        ),
         "name": "布局 · " + title,
         "type": "n8n-nodes-base.stickyNote",
         "typeVersion": 1,
@@ -70,7 +74,9 @@ def arrange(workflow):
         for a, b, kind, _ in connections
         if kind.startswith("ai_") and not any(a in e[:2] for e in main)
     }
-    errors = {n for n in nodes if n in ("下载失败", "账单处理失败", "月报执行失败")}
+    errors = {
+        n for n in nodes if n in ("下载失败", "账单处理失败", "月报执行失败")
+    }
     for source, target, kind, index in main:
         if index == 1 and nodes[source].get("onError") == "continueErrorOutput":
             errors.add(target)
@@ -85,7 +91,9 @@ def arrange(workflow):
     rank = ranks(normal, main)
     desired = {n: 0 for n in normal}
     for name in sorted(normal, key=lambda n: rank[n]):
-        parents = [(a, index) for a, b, _, index in main if b == name and a in rank]
+        parents = [
+            (a, index) for a, b, _, index in main if b == name and a in rank
+        ]
         if parents:
             desired[name] = sum(
                 desired[a] + (280 if index == 1 else 0) for a, index in parents
@@ -106,7 +114,11 @@ def arrange(workflow):
         "财务月报": {"写回上月评分": 260},
         "账单入账": {"AI Agent": -440, "校验分类决策": -440},
         "账单文件": {"下载微信账单": 280},
-        "屏幕时间周报": {"仅返回重复请求": 520, "返回重复结果": 520, "静默处理": 360},
+        "屏幕时间周报": {
+            "仅返回重复请求": 520,
+            "返回重复结果": 520,
+            "静默处理": 360,
+        },
         "生活助手": {"Get Voice File": -320, "Transcribe a recording": -320},
     }
     if name in ("财务月报", "账单入账", "账单文件", "屏幕时间周报", "生活助手"):
@@ -136,12 +148,16 @@ def arrange(workflow):
         error_rank = ranks(sorted(errors), main)
         start = (
             max(
-                (rank[a] for a, b, _, _ in main if b in errors and a in rank), default=0
+                (rank[a] for a, b, _, _ in main if b in errors and a in rank),
+                default=0,
             )
             + 1
         )
         error_y = (
-            min((nodes[n]["position"][1] for n in nodes if n not in errors), default=0)
+            min(
+                (nodes[n]["position"][1] for n in nodes if n not in errors),
+                default=0,
+            )
             - 520
         )
         for n in errors:
@@ -156,7 +172,10 @@ def arrange(workflow):
             "Call 'Bill analyze'": "逐月生成财务月报",
             "Schedule Trigger": "每天 00:10 检查",
         },
-        "账单入账": {"BillFlow": "单封账单邮件输入", "AI Agent": "仅处理待分类项目"},
+        "账单入账": {
+            "BillFlow": "单封账单邮件输入",
+            "AI Agent": "仅处理待分类项目",
+        },
         "账单问答": {"AI Agent": "调用账本查询工具"},
         "账本查询": {"When Executed by Another Workflow": "接收日期范围参数"},
     }
@@ -170,7 +189,12 @@ def arrange(workflow):
             (0, 4, "01 月份与账本", "读取完整账本，检查月份并领取生成任务。"),
             (5, 8, "02 分析与校验", "结合真实上月计划、Fane 核算和简短分析。"),
             (9, 11, "03 报告存档", "校验账本快照，保存固定版式报告。"),
-            (12, 99, "04 行动与投递", "保存计划和复盘，再发送一封邮件并登记成功。"),
+            (
+                12,
+                99,
+                "04 行动与投递",
+                "保存计划和复盘，再发送一封邮件并登记成功。",
+            ),
         ],
         "账单入账": [
             (0, 3, "01 准备账单", "读取文件并检查入账准备结果。"),
@@ -187,7 +211,12 @@ def arrange(workflow):
             (3, 99, "02 回应与月报", "回应同步结果，同步成功再检查月报。"),
         ],
         "屏幕时间周报": [
-            (0, 4, "01 数据与去重", "检查请求质量并读取历史，重复周期直接返回。"),
+            (
+                0,
+                4,
+                "01 数据与去重",
+                "检查请求质量并读取历史，重复周期直接返回。",
+            ),
             (5, 9, "02 分析与存档", "生成趋势和分析，保存周报记录。"),
             (10, 99, "03 投递与状态", "需要通知才发邮件，之后登记结果并回应。"),
         ],
@@ -203,12 +232,16 @@ def arrange(workflow):
                 for h in hs
             ]
             if members:
-                result["nodes"].append(note(result, title, description, members))
+                result["nodes"].append(
+                    note(result, title, description, members)
+                )
     else:
         members = [nodes[n] for n in normal] + [nodes[h] for h in helpers]
         if members:
             result["nodes"].append(
-                note(result, name, "主线从左到右；分支和模型独立排列。", members)
+                note(
+                    result, name, "主线从左到右；分支和模型独立排列。", members
+                )
             )
     if errors:
         result["nodes"].append(

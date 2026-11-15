@@ -18,7 +18,9 @@ BALANCE_PATTERN_TEMPLATE = (
 INCLUDE_PATTERN = re.compile(r'^\s*include\s+"([^"]+)"')
 
 
-def read_account_balance(ledger_file: str, account: str, currency: str) -> Decimal:
+def read_account_balance(
+    ledger_file: str, account: str, currency: str
+) -> Decimal:
     ledger_path = Path(ledger_file).expanduser()
     if not ledger_path.is_file():
         raise ProviderError(f"外币信用卡账本文件不存在: {ledger_file}")

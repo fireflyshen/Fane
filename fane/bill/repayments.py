@@ -69,10 +69,18 @@ def foreign_credit_card_repayment_order(
     return None
 
 
-def matches_repayment_rule(order: Order, rule: ForeignCreditCardRepayment) -> bool:
-    if rule.trigger_minus_account and order.minus_account != rule.trigger_minus_account:
+def matches_repayment_rule(
+    order: Order, rule: ForeignCreditCardRepayment
+) -> bool:
+    if (
+        rule.trigger_minus_account
+        and order.minus_account != rule.trigger_minus_account
+    ):
         return False
-    if rule.trigger_plus_account and order.plus_account != rule.trigger_plus_account:
+    if (
+        rule.trigger_plus_account
+        and order.plus_account != rule.trigger_plus_account
+    ):
         return False
     return bool(rule.trigger_minus_account or rule.trigger_plus_account)
 

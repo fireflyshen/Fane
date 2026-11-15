@@ -25,7 +25,8 @@ class BackfillTest(unittest.TestCase):
             "template_version": 2,
         }
         backfill.write(
-            "snapshot.json", {"ledger": {"2026-09": "fixture", "2026-10": "partial"}}
+            "snapshot.json",
+            {"ledger": {"2026-09": "fixture", "2026-10": "partial"}},
         )
         db = sqlite3.connect(self.root / "state/monthly-reports/reports.sqlite")
         db.execute(
@@ -45,10 +46,14 @@ class BackfillTest(unittest.TestCase):
             {
                 "asOf": "2026-10-06",
                 "selected": month,
-                "months": {month: {"status": "ready", "generatedAt": "fixture"}},
+                "months": {
+                    month: {"status": "ready", "generatedAt": "fixture"}
+                },
             },
         )
-        backfill.write(month + ".json", {"subject": "Fixture", "report": self.report})
+        backfill.write(
+            month + ".json", {"subject": "Fixture", "report": self.report}
+        )
 
     def sent(self):
         backfill.operate("begin")
@@ -62,8 +67,12 @@ class BackfillTest(unittest.TestCase):
         )
 
     def rows(self):
-        with sqlite3.connect(self.root / "state/monthly-reports/reports.sqlite") as db:
-            return db.execute("SELECT month,status,report_json FROM reports").fetchall()
+        with sqlite3.connect(
+            self.root / "state/monthly-reports/reports.sqlite"
+        ) as db:
+            return db.execute(
+                "SELECT month,status,report_json FROM reports"
+            ).fetchall()
 
     def test_uncertain_delivery_and_sent_delivery_cannot_resend(self):
         backfill.operate("begin")
@@ -72,10 +81,15 @@ class BackfillTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             backfill.operate(
                 "sent",
-                request={"accepted_count": 0, "rejected_count": 1, "messageId": ""},
+                request={
+                    "accepted_count": 0,
+                    "rejected_count": 1,
+                    "messageId": "",
+                },
             )
         self.assertEqual(
-            backfill.read("manifest.json")["months"][self.month]["status"], "sending"
+            backfill.read("manifest.json")["months"][self.month]["status"],
+            "sending",
         )
         backfill.operate(
             "sent",
@@ -95,7 +109,9 @@ class BackfillTest(unittest.TestCase):
         self.assertEqual(self.rows(), [])
 
     def test_existing_sent_report_is_preserved(self):
-        with sqlite3.connect(self.root / "state/monthly-reports/reports.sqlite") as db:
+        with sqlite3.connect(
+            self.root / "state/monthly-reports/reports.sqlite"
+        ) as db:
             db.execute(
                 "INSERT INTO reports(month,status,report_json) VALUES(?,'sent','original')",
                 (self.month,),
